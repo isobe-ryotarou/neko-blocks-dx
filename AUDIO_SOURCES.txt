@@ -60,3 +60,16 @@ Playback rates:
 8: 1.22x
 9: 1.20x
 10: 1.32x
+
+
+4.2 CHANGES
+Stage 1 replacement:
+- Anthem of Europe (US Navy instrumental short version), based on Beethoven's Ode to Joy
+- Wikimedia Commons, 60.96 seconds, U.S. Navy Band, public domain
+- https://commons.wikimedia.org/wiki/File:Anthem_of_Europe_(US_Navy_instrumental_short_version).ogg
+
+Stage 5 replacement:
+- Rossini: William Tell Overture, United States Marine Band (2000)
+- Wikimedia Commons, 11:02, 146 kbps, public domain U.S. federal government work
+- Finale begins at 7:30; the game starts playback there
+- https://commons.wikimedia.org/wiki/File:Gioachino_Rossini,_William_Tell_Overture_(military_band_version,_2000).ogg

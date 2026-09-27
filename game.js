@@ -185,8 +185,8 @@ const STAGE_MUSIC=[
 const REAL_BGM={
   1:{
     title:'歓喜の歌',
-    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Ode_to_Joy.ogg',
-    rate:1.18, volume:.96
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Anthem_of_Europe_(US_Navy_instrumental_short_version).ogg',
+    rate:1.14, volume:.98, startAt:0, loopEnd:60.5
   },
   2:{
     title:'アイネ・クライネ・ナハトムジーク 第1楽章',
@@ -205,8 +205,8 @@ const REAL_BGM={
   },
   5:{
     title:'ウィリアム・テル序曲',
-    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/William_Tell2.ogg',
-    rate:1.22, volume:.98
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Gioachino_Rossini,_William_Tell_Overture_(military_band_version,_2000).ogg',
+    rate:1.16, volume:.98, startAt:450, loopEnd:661
   },
   6:{
     title:'ハンガリー舞曲 第5番',
@@ -469,8 +469,24 @@ class AudioEngine{
     if('webkitPreservesPitch' in a)a.webkitPreservesPitch=true;
     if('mozPreservesPitch' in a)a.mozPreservesPitch=true;
 
+    a.addEventListener('loadedmetadata',()=>{
+      if(Number.isFinite(cfg.startAt) && cfg.startAt>0){
+        try{a.currentTime=cfg.startAt}catch{}
+      }
+    },{once:true});
+
+    a.addEventListener('timeupdate',()=>{
+      if(Number.isFinite(cfg.loopEnd) && a.currentTime>=cfg.loopEnd){
+        try{a.currentTime=Number.isFinite(cfg.startAt)?cfg.startAt:0}catch{}
+        if(this.wantBgm)a.play().catch(()=>{});
+      }
+    });
+
     a.addEventListener('canplay',()=>{
       if(this.wantBgm && this.musicStage===stage){
+        if(Number.isFinite(cfg.startAt) && cfg.startAt>0 && a.currentTime<cfg.startAt-1){
+          try{a.currentTime=cfg.startAt}catch{}
+        }
         a.play().then(()=>{this.pendingRealPlay=false}).catch(()=>{
           this.pendingRealPlay=true;
         });
@@ -752,7 +768,7 @@ class TitleScene extends Phaser.Scene{
     this.cameras.main.setBackgroundColor('#eef3f7');
 
     const {width:w,height:h}=this.scale;
-    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 4.1.1',{
+    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 4.2',{
       fontSize:'39px',fontStyle:'bold',color:'#17212b',stroke:'#fff',strokeThickness:3
     }).setOrigin(.5);
 
@@ -843,7 +859,7 @@ class GameScene extends Phaser.Scene{
       fontSize:'14px',fontStyle:'bold',color:'#45525d'
     }).setOrigin(1,0);
 
-    this.add.text(this.scale.width/2,12,'v4.1.1',{
+    this.add.text(this.scale.width/2,12,'v4.2',{
       fontSize:'12px',fontStyle:'bold',color:'#7b8791'
     }).setOrigin(.5,0);
 
@@ -1126,47 +1142,115 @@ class GameScene extends Phaser.Scene{
 
     const msg=STAGE_CLEAR_MESSAGES[stageNumber]||'制覇';
     const {width:w,height:h}=this.scale;
+    const gold=stageNumber===10;
+    const accent=gold?0xffd54f:0x7ee8ff;
 
-    const shade=this.add.rectangle(w/2,h/2,w,h,0x000000,.0).setDepth(90);
-    const text=this.add.text(0,0,msg,{
-      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:'150px',
-      fontStyle:'bold',
-      color:stageNumber===10?'#ffd54f':'#ffffff',
-      stroke:'#000000',
-      strokeThickness:12,
-      shadow:{offsetX:10,offsetY:10,color:'#000000',blur:8,fill:true},
-      padding:{left:24,right:24,top:18,bottom:18}
-    }).setOrigin(.5).setDepth(92).setAlpha(0).setAngle(-12);
+    // brief hit-stop
+    this.cameras.main.shake(90,.006);
 
-    const tail=this.add.rectangle(
-      w+80,h+80,300,20,
-      stageNumber===10?0xffd54f:0xffffff,.0
-    ).setDepth(91).setAngle(-32);
+    const shade=this.add.rectangle(w/2,h/2,w,h,0x05080c,0).setDepth(90);
+    this.tweens.add({targets:shade,alpha:.56,duration:90,ease:'Linear'});
 
-    this.tweens.add({targets:shade,alpha:.30,duration:120,ease:'Linear'});
-
-    const startX=w+text.width*.6;
-    const startY=h+text.height*.35;
-    const endX=-text.width*.65;
-    const endY=-text.height*.45;
-
-    text.setPosition(startX,startY).setAlpha(1);
-    tail.setPosition(startX+120,startY+80).setAlpha(.46);
-
+    // diagonal anime band
+    const band=this.add.rectangle(w/2,h/2,w*1.65,176,gold?0x3a2b00:0x101a24,.94)
+      .setDepth(91).setAngle(-12).setScale(0,1);
     this.tweens.add({
-      targets:text,x:endX,y:endY,duration:2000,ease:'Linear'
-    });
-    this.tweens.add({
-      targets:tail,x:endX+150,y:endY+110,alpha:0,scaleX:2.4,
-      duration:2000,ease:'Linear'
+      targets:band,scaleX:1,duration:180,ease:'Cubic.easeOut'
     });
 
-    this.time.delayedCall(2000,()=>{
+    // manga speed lines radiating around center
+    const speedLines=[];
+    for(let i=0;i<34;i++){
+      const a=(i/34)*Math.PI*2+(Math.random()-.5)*.08;
+      const len=90+Math.random()*150;
+      const r=125+Math.random()*75;
+      const x=w/2+Math.cos(a)*r;
+      const y=h/2+Math.sin(a)*r;
+      const line=this.add.rectangle(
+        x,y,len,1.5+Math.random()*2.4,
+        gold?0xffe082:0xcaf5ff,.0
+      ).setDepth(92).setAngle(Phaser.Math.RadToDeg(a));
+      speedLines.push(line);
       this.tweens.add({
-        targets:shade,alpha:0,duration:140,
+        targets:line,alpha:.75,scaleX:{from:.15,to:1},
+        duration:120+Math.random()*130,ease:'Quad.easeOut'
+      });
+    }
+
+    const small=this.add.text(w/2,h/2-95,'STAGE '+stageNumber+' CLEAR!',{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:'24px',fontStyle:'bold',
+      color:gold?'#ffe082':'#e9fbff',
+      stroke:'#000000',strokeThickness:5
+    }).setOrigin(.5).setDepth(95).setAlpha(0).setAngle(-5);
+
+    const shadow=this.add.text(w/2+11,h/2+11,msg,{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:'176px',fontStyle:'bold',
+      color:'#000000',stroke:'#000000',strokeThickness:15
+    }).setOrigin(.5).setDepth(94).setAlpha(.0).setAngle(-9);
+
+    const text=this.add.text(w/2,h/2,msg,{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:'176px',fontStyle:'bold',
+      color:gold?'#ffd54f':'#ffffff',
+      stroke:gold?'#6c4b00':'#0d3850',
+      strokeThickness:14,
+      shadow:{offsetX:0,offsetY:0,color:gold?'#ffab00':'#4ddfff',blur:18,fill:true},
+      padding:{left:28,right:28,top:18,bottom:18}
+    }).setOrigin(.5).setDepth(96).setScale(2.7).setAlpha(0).setAngle(-9);
+
+    // slash streaks
+    const slash1=this.add.rectangle(w/2,h/2,w*1.3,8,accent,.0).setDepth(97).setAngle(-24);
+    const slash2=this.add.rectangle(w/2,h/2+18,w*1.15,3,0xffffff,.0).setDepth(97).setAngle(-24);
+
+    this.time.delayedCall(70,()=>{
+      this.cameras.main.flash(85,255,255,255);
+      this.tweens.add({targets:small,alpha:1,y:small.y-8,duration:180,ease:'Back.easeOut'});
+      this.tweens.add({
+        targets:[text,shadow],
+        alpha:1,scale:1,duration:260,ease:'Back.easeOut'
+      });
+      this.tweens.add({
+        targets:slash1,alpha:.85,scaleX:{from:.05,to:1},duration:130,ease:'Cubic.easeOut'
+      });
+      this.tweens.add({
+        targets:slash2,alpha:1,scaleX:{from:.05,to:1},duration:100,delay:35,ease:'Cubic.easeOut'
+      });
+    });
+
+    // hold for readability, then shoot diagonally up-left with afterimage feel
+    this.time.delayedCall(1050,()=>{
+      const ghost1=this.add.text(text.x+18,text.y+12,msg,{
+        fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+        fontSize:'176px',fontStyle:'bold',
+        color:gold?'#ffd54f':'#73e6ff',
+        stroke:'#000000',strokeThickness:10
+      }).setOrigin(.5).setDepth(93).setAlpha(.32).setAngle(-9);
+
+      const ghost2=this.add.text(text.x+34,text.y+24,msg,{
+        fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+        fontSize:'176px',fontStyle:'bold',
+        color:'#ffffff',stroke:'#000000',strokeThickness:8
+      }).setOrigin(.5).setDepth(92).setAlpha(.16).setAngle(-9);
+
+      const targets=[text,shadow,ghost1,ghost2];
+      this.tweens.add({
+        targets,
+        x:-text.width*.7,
+        y:-text.height*.55,
+        alpha:0,
+        duration:850,
+        ease:'Cubic.easeIn'
+      });
+
+      this.tweens.add({
+        targets:[small,band,slash1,slash2,shade,...speedLines],
+        alpha:0,duration:520,ease:'Sine.easeIn',
         onComplete:()=>{
-          text.destroy();tail.destroy();shade.destroy();
+          text.destroy();shadow.destroy();ghost1.destroy();ghost2.destroy();
+          small.destroy();band.destroy();slash1.destroy();slash2.destroy();shade.destroy();
+          speedLines.forEach(o=>o.destroy());
           if(stageNumber===10)this.showMasterClear();
           else this.paused=false;
         }
