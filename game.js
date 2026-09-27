@@ -53,7 +53,7 @@ const Store={
 let SETTINGS=Store.load();
 
 class AudioManager{
-  constructor(){this.ctx=null;this.master=null;this.music=null;this.sfx=null;this.comp=null;this.rev=null;this.bgmTimer=null;this.step=0}
+  constructor(){this.ctx=null;this.master=null;this.music=null;this.sfx=null;this.comp=null;this.rev=null;this.echo=null;this.echoFB=null;this.echoWet=null;this.bgmTimer=null;this.step=0}
   ensure(){
     if(this.ctx){if(this.ctx.state==='suspended')this.ctx.resume();return}
     const A=window.AudioContext||window.webkitAudioContext;
@@ -68,6 +68,10 @@ class AudioManager{
     const len=(this.ctx.sampleRate*1.8)|0,b=this.ctx.createBuffer(2,len,this.ctx.sampleRate);
     for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.7)*.28}
     this.rev.buffer=b;this.rev.connect(this.master);
+    this.echo=this.ctx.createDelay(.6);this.echo.delayTime.value=.185;
+    this.echoFB=this.ctx.createGain();this.echoFB.gain.value=.16;
+    this.echoWet=this.ctx.createGain();this.echoWet.gain.value=.10;
+    this.echo.connect(this.echoFB);this.echoFB.connect(this.echo);this.echo.connect(this.echoWet);this.echoWet.connect(this.master);
     this.music.connect(this.master);this.sfx.connect(this.master);this.master.connect(this.comp);this.comp.connect(this.ctx.destination);
   }
   setVolumes(){if(this.music)this.music.gain.value=SETTINGS.bgmVol;if(this.sfx)this.sfx.gain.value=SETTINGS.seVol}
@@ -78,9 +82,41 @@ class AudioManager{
     g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(vol,t+.018);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
     dry.gain.value=.88;wg.gain.value=wet;
     g.connect(flt);flt.connect(dry);dry.connect(dest==='music'?this.music:this.sfx);flt.connect(wg);wg.connect(this.rev);
+    if(dest==='music'&&this.echo){const eg=this.ctx.createGain();eg.gain.value=.07;flt.connect(eg);eg.connect(this.echo)}
     [[-6,'sine',.45],[0,type,1],[6,'sine',.45]].forEach(([det,tp,a])=>{
       const o=this.ctx.createOscillator(),og=this.ctx.createGain();o.type=tp;o.frequency.setValueAtTime(freq,t);o.frequency.exponentialRampToValueAtTime(Math.max(30,freq*slide),t+dur);o.detune.value=det;og.gain.value=a;o.connect(og);og.connect(g);o.start(t);o.stop(t+dur+.04)
     });
+  }
+  stringNote(freq,dur=.45,delay=0,vol=.0065){
+    if(!this.ctx)return;
+    const t=this.ctx.currentTime+delay;
+    const mix=this.ctx.createGain(),flt=this.ctx.createBiquadFilter(),env=this.ctx.createGain(),wet=this.ctx.createGain();
+    flt.type='lowpass';flt.frequency.setValueAtTime(2400,t);flt.frequency.exponentialRampToValueAtTime(1300,t+dur);
+    env.gain.setValueAtTime(.0001,t);env.gain.linearRampToValueAtTime(vol,t+.055);env.gain.setValueAtTime(vol*.92,t+Math.min(.18,dur*.45));env.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    wet.gain.value=.25;
+    mix.connect(flt);flt.connect(env);env.connect(this.music);flt.connect(wet);wet.connect(this.rev);
+    if(this.echo){const eg=this.ctx.createGain();eg.gain.value=.08;flt.connect(eg);eg.connect(this.echo)}
+    [-8,0,8].forEach((det,i)=>{
+      const o=this.ctx.createOscillator(),og=this.ctx.createGain(),vib=this.ctx.createOscillator(),vg=this.ctx.createGain();
+      o.type=i===1?'triangle':'sine';o.frequency.value=freq;o.detune.value=det;og.gain.value=i===1?1:.48;
+      vib.type='sine';vib.frequency.value=5.1+Math.random()*.4;vg.gain.value=i===1?4.5:2.7;
+      vib.connect(vg);vg.connect(o.detune);o.connect(og);og.connect(mix);vib.start(t);o.start(t);o.stop(t+dur+.06);vib.stop(t+dur+.06);
+    });
+  }
+  pluck(freq,dur=.20,delay=0,vol=.006){
+    if(!this.ctx)return;
+    const t=this.ctx.currentTime+delay,o=this.ctx.createOscillator(),f=this.ctx.createBiquadFilter(),e=this.ctx.createGain();
+    o.type='triangle';o.frequency.value=freq;f.type='lowpass';f.frequency.setValueAtTime(2600,t);f.frequency.exponentialRampToValueAtTime(800,t+dur);
+    e.gain.setValueAtTime(vol,t);e.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(f);f.connect(e);e.connect(this.music);o.start(t);o.stop(t+dur+.03);
+  }
+  vocalSweep(start,mid,end,dur=.26,delay=0,vol=.025){
+    if(!this.ctx)return;
+    const t=this.ctx.currentTime+delay,o=this.ctx.createOscillator(),f=this.ctx.createBiquadFilter(),e=this.ctx.createGain(),wet=this.ctx.createGain();
+    o.type='sawtooth';o.frequency.setValueAtTime(start,t);o.frequency.exponentialRampToValueAtTime(mid,t+dur*.52);o.frequency.exponentialRampToValueAtTime(end,t+dur);
+    f.type='bandpass';f.frequency.value=1150;f.Q.value=2.1;
+    e.gain.setValueAtTime(.0001,t);e.gain.linearRampToValueAtTime(vol,t+.025);e.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    wet.gain.value=.10;o.connect(f);f.connect(e);e.connect(this.sfx);f.connect(wet);wet.connect(this.rev);o.start(t);o.stop(t+dur+.04);
   }
   noise(d=.07,v=.024,band=1100){
     if(!this.ctx)return;const n=(this.ctx.sampleRate*d)|0,b=this.ctx.createBuffer(1,n,this.ctx.sampleRate),a=b.getChannelData(0);
@@ -101,26 +137,57 @@ class AudioManager{
   }
   meow(){
     if(!SETTINGS.se)return;this.ensure();
-    const set=[[510,1.45,.23],[430,1.52,.27],[610,1.35,.20],[370,1.42,.30],[670,1.28,.18]],q=set[(Math.random()*set.length)|0];
-    this.tone(q[0],q[2],0,.025,'sawtooth','sfx',.08,q[1])
+    const voices=[
+      [390,610,520,.28],[470,720,580,.24],[330,540,450,.31],
+      [560,760,650,.22],[420,650,500,.27],[610,820,690,.20]
+    ];
+    const q=voices[(Math.random()*voices.length)|0];
+    this.vocalSweep(q[0],q[1],q[2],q[3],0,.025);
+    if(Math.random()<.45)this.vocalSweep(q[0]*1.52,q[1]*1.48,q[2]*1.45,q[3]*.78,.018,.008);
   }
-  bark(){if(!SETTINGS.se)return;this.ensure();this.tone(210,.11,0,.035,'sawtooth','sfx',.04,.62);this.tone(145,.10,.035,.021,'triangle','sfx',.03,.78);this.noise(.07,.02,800)}
-  level(){if(!SETTINGS.se)return;this.ensure();[523,659,784,1047].forEach((f,i)=>this.tone(f,.20,i*.075,.019,'square','sfx',.14,1.01))}
-  gameOver(){this.stopBgm();if(!SETTINGS.se)return;this.ensure();[[392,.15,0],[330,.15,.17],[262,.18,.34],[196,.42,.54]].forEach(n=>this.tone(n[0],n[1],n[2],.025,'triangle','sfx',.18,.97))}
+  bark(){
+    if(!SETTINGS.se)return;this.ensure();
+    this.vocalSweep(235,150,125,.12,0,.034);
+    this.vocalSweep(190,125,105,.10,.055,.026);
+    this.noise(.075,.019,720);
+  }
+  level(){
+    if(!SETTINGS.se)return;this.ensure();
+    [523,659,784,1047,1319].forEach((f,i)=>this.tone(f,.23,i*.065,.016,'triangle','sfx',.18,1.01));
+    this.noise(.16,.012,2100);
+  }
+  gameOver(){
+    this.stopBgm();if(!SETTINGS.se)return;this.ensure();
+    [[392,.18,0],[330,.18,.18],[262,.21,.36],[220,.22,.56],[196,.48,.76]].forEach(n=>this.tone(n[0],n[1],n[2],.022,'triangle','sfx',.20,.965));
+  }
   startBgm(){
     if(this.bgmTimer||!SETTINGS.bgm)return;this.ensure();if(!this.ctx)return;
-    const mel=[740,659,587,554,494,440,494,554,587,494,554,587,659,587,554,494,440,370,440,494,554,494,440,370,330,370,440,494,554,587,659,740];
-    const bass=[147,110,123,92.5,98,73.4,98,110],har=[294,220,247,185,196,147,196,220];
+    // Original synthesized arrangement using the public-domain Canon in D harmonic progression.
+    const bass=[147.0,110.0,123.47,92.50,98.00,73.42,98.00,110.0]; // D A Bm F#m G D G A
+    const arp=[
+      [293.66,369.99,440.00],[277.18,369.99,440.00],[246.94,293.66,369.99],[277.18,369.99,440.00],
+      [246.94,293.66,392.00],[220.00,293.66,369.99],[246.94,293.66,392.00],[277.18,329.63,440.00]
+    ];
+    const melody=[
+      739.99,659.25,587.33,554.37,493.88,440.00,493.88,554.37,
+      587.33,493.88,554.37,587.33,659.25,587.33,554.37,493.88,
+      440.00,369.99,440.00,493.88,554.37,493.88,440.00,369.99,
+      329.63,369.99,440.00,493.88,554.37,587.33,659.25,739.99
+    ];
     const tick=()=>{
       if(!SETTINGS.bgm)return;
-      const i=this.step%mel.length,p=(i/4|0)%8;
-      this.tone(mel[i],.36,0,.0066,'triangle','music',.22,1);
-      if(this.step>7)this.tone(mel[(i+24)%32]*.998,.35,.018,.0040,'triangle','music',.22,1);
-      if(i%2===0)this.tone(har[p],.44,.008,.0030,'sine','music',.19,1);
-      if(i%4===0){this.tone(bass[p],.70,0,.0072,'triangle','music',.18,1);this.tone(bass[p]*2,.52,.012,.0023,'sine','music',.16,1)}
-      this.step++
+      const i=this.step%melody.length,bar=(this.step/4|0)%8,sub=this.step%4;
+      this.stringNote(melody[i],.42,0,.0049);
+      if(this.step>=8)this.stringNote(melody[(i+24)%32]*.999,.40,.026,.0029);
+      const chord=arp[bar];
+      this.pluck(chord[sub%3],.20,.01,.0035);
+      if(sub===0){
+        this.stringNote(bass[bar],.72,0,.0057);
+        this.stringNote(bass[bar]*2,.52,.018,.0022);
+      }
+      this.step++;
     };
-    tick();this.bgmTimer=setInterval(tick,208)
+    tick();this.bgmTimer=setInterval(tick,215);
   }
   stopBgm(){if(this.bgmTimer){clearInterval(this.bgmTimer);this.bgmTimer=null}}
 }
@@ -156,7 +223,7 @@ class TitleScene extends Phaser.Scene{
     setControlsVisible(false);
     const {width:w,height:h}=this.scale;this.cameras.main.setBackgroundColor('#eef3f7');
     const bg=this.add.graphics();bg.fillStyle(0xdce7ef,.55);for(let i=0;i<12;i++)bg.fillCircle(Math.random()*w,Math.random()*h,3+Math.random()*8);
-    this.add.text(w/2,h*.22,'NEKO BLOCKS DX 2.2',{fontFamily:'system-ui',fontSize:'42px',fontStyle:'bold',color:'#15202a',stroke:'#ffffff',strokeThickness:3}).setOrigin(.5);
+    this.add.text(w/2,h*.22,'NEKO BLOCKS DX 2.3',{fontFamily:'system-ui',fontSize:'42px',fontStyle:'bold',color:'#15202a',stroke:'#ffffff',strokeThickness:3}).setOrigin(.5);
     this.add.text(w/2,h*.29,'PHASER EDITION',{fontSize:'15px',fontStyle:'bold',color:'#6a7885',letterSpacing:2}).setOrigin(.5);
     const hero=this.add.image(w/2,h*.41,'cat4').setScale(2.2);
     this.tweens.add({targets:hero,y:hero.y-8,angle:{from:-2,to:2},yoyo:true,repeat:-1,duration:900,ease:'Sine.inOut'});
@@ -220,7 +287,7 @@ class GameScene extends Phaser.Scene{
     this.linesT=this.add.text(12,38,'LINES 0',{fontSize:'15px',color:'#111820'});
     this.levelT=this.add.text(12,60,'LEVEL 1',{fontSize:'14px',fontStyle:'bold',color:'#55636f'});
     this.bestT=this.add.text(w-12,12,'BEST '+this.best,{fontSize:'14px',fontStyle:'bold',color:'#45525d'}).setOrigin(1,0);
-    this.add.text(w/2,12,'v2.2',{fontSize:'12px',fontStyle:'bold',color:'#7b8791'}).setOrigin(.5,0);
+    this.add.text(w/2,12,'v2.3',{fontSize:'12px',fontStyle:'bold',color:'#7b8791'}).setOrigin(.5,0);
     this.add.text(w-12,35,'NEXT',{fontSize:'13px',fontStyle:'bold',color:'#45525d'}).setOrigin(1,0);
     this.nextLayer=this.add.container().setDepth(5);
     this.comboT=this.add.text(w/2,this.by+this.bh*.38,'',{fontSize:'34px',fontStyle:'bold',color:'#ffffff',stroke:'#111820',strokeThickness:5}).setOrigin(.5).setDepth(25).setAlpha(0);
