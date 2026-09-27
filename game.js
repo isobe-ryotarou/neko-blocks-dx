@@ -268,6 +268,7 @@ class AudioEngine{
     this.bgmMode='';
     this.realAudio=null;
     this.realStage=0;
+    this.pendingRealPlay=false;
   }
 
   ensure(){
@@ -463,24 +464,53 @@ class AudioEngine{
     a.preload='auto';
     a.volume=cfg.volume;
     a.playbackRate=cfg.rate;
-    a.crossOrigin='anonymous';
 
     if('preservesPitch' in a)a.preservesPitch=true;
     if('webkitPreservesPitch' in a)a.webkitPreservesPitch=true;
     if('mozPreservesPitch' in a)a.mozPreservesPitch=true;
 
     a.addEventListener('canplay',()=>{
-      if(this.wantBgm && this.musicStage===stage)a.play().catch(()=>{});
+      if(this.wantBgm && this.musicStage===stage){
+        a.play().then(()=>{this.pendingRealPlay=false}).catch(()=>{
+          this.pendingRealPlay=true;
+        });
+      }
     },{once:true});
 
+    a.addEventListener('playing',()=>{
+      this.pendingRealPlay=false;
+    });
+
     a.addEventListener('error',()=>{
-      console.warn('Real BGM failed to load:',cfg.title);
+      console.warn('Real BGM failed to load:',cfg.title,a.error);
+      this.pendingRealPlay=true;
     });
 
     this.realAudio=a;
     this.realStage=stage;
     this.musicStage=stage;
-    a.play().catch(()=>{});
+
+    a.play().then(()=>{
+      this.pendingRealPlay=false;
+    }).catch(()=>{
+      this.pendingRealPlay=true;
+    });
+  }
+
+  userGestureResume(){
+    this.ensure();
+    if(this.realAudio && this.wantBgm){
+      const cfg=REAL_BGM[this.musicStage];
+      if(cfg){
+        this.realAudio.volume=cfg.volume;
+        this.realAudio.playbackRate=cfg.rate;
+      }
+      this.realAudio.play().then(()=>{
+        this.pendingRealPlay=false;
+      }).catch(()=>{});
+    }else if(this.wantBgm){
+      this.resumeBgm();
+    }
   }
 
   stopSynthBgm(){
@@ -541,8 +571,9 @@ class AudioEngine{
 
     if(this.realAudio){
       this.realAudio.pause();
-      this.realAudio.currentTime=0;
-      this.realAudio.src='';
+      try{this.realAudio.currentTime=0}catch{}
+      this.realAudio.removeAttribute('src');
+      this.realAudio.load();
       this.realAudio=null;
       this.realStage=0;
     }
@@ -721,7 +752,7 @@ class TitleScene extends Phaser.Scene{
     this.cameras.main.setBackgroundColor('#eef3f7');
 
     const {width:w,height:h}=this.scale;
-    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 4.1',{
+    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 4.1.1',{
       fontSize:'39px',fontStyle:'bold',color:'#17212b',stroke:'#fff',strokeThickness:3
     }).setOrigin(.5);
 
@@ -753,6 +784,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerdown',()=>{
       AUDIO.ensure();
       AUDIO.startBgm(1);
+      AUDIO.userGestureResume();
       this.scene.start('Game');
     });
   }
@@ -805,13 +837,13 @@ class GameScene extends Phaser.Scene{
     this.linesT=this.add.text(12,38,'LINES 0',{fontSize:'15px',color:'#111820'});
     this.levelT=this.add.text(12,60,'LEVEL 1',{fontSize:'14px',fontStyle:'bold',color:'#55636f'});
     this.stageT=this.add.text(this.scale.width/2,34,'STAGE 1 / 10',{fontSize:'14px',fontStyle:'bold',color:'#45525d'}).setOrigin(.5,0);
-    this.musicT=this.add.text(this.scale.width/2,54,'BGM: 歓喜の歌 〈REAL AUDIO 1.18×〉',{fontSize:'11px',fontStyle:'bold',color:'#71808b'}).setOrigin(.5,0);
+    this.musicT=this.add.text(this.scale.width/2,54,'BGM: 歓喜の歌 〈REAL AUDIO〉',{fontSize:'11px',fontStyle:'bold',color:'#71808b'}).setOrigin(.5,0);
 
     this.bestT=this.add.text(this.scale.width-12,12,'BEST '+this.best,{
       fontSize:'14px',fontStyle:'bold',color:'#45525d'
     }).setOrigin(1,0);
 
-    this.add.text(this.scale.width/2,12,'v4.1',{
+    this.add.text(this.scale.width/2,12,'v4.1.1',{
       fontSize:'12px',fontStyle:'bold',color:'#7b8791'
     }).setOrigin(.5,0);
 
@@ -1654,6 +1686,7 @@ class GameScene extends Phaser.Scene{
       el.onpointerdown=e=>{
         e.preventDefault();
         e.stopPropagation();
+        AUDIO.userGestureResume();
         press(el,true);
         try{el.setPointerCapture(e.pointerId)}catch{}
         down();
@@ -1683,6 +1716,7 @@ class GameScene extends Phaser.Scene{
       el.onpointerdown=e=>{
         e.preventDefault();
         e.stopPropagation();
+        AUDIO.userGestureResume();
         press(el,true);
         fn();
       };
