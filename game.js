@@ -181,6 +181,22 @@ const STAGE_MUSIC=[
 
 
 
+
+const REAL_BGM={
+  1:{
+    title:'歓喜の歌',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Ode_to_Joy.ogg',
+    rate:1.18,
+    volume:.92
+  },
+  2:{
+    title:'アイネ・クライネ・ナハトムジーク 第1楽章',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Mozart_K525_Serenade_in_G_Major_1_-_Allegro.ogg',
+    rate:1.18,
+    volume:.92
+  }
+};
+
 const Store={
   best(){
     try{return Math.max(0,Number(localStorage.getItem('neko_dx3_best'))||0)}
@@ -212,6 +228,8 @@ class AudioEngine{
     this.musicStage=1;
     this.odeIndex=0;
     this.bgmMode='';
+    this.realAudio=null;
+    this.realStage=0;
   }
 
   ensure(){
@@ -366,66 +384,89 @@ class AudioEngine{
   startBgm(stage=this.musicStage||1){
     this.wantBgm=true;
     this.musicStage=Math.max(1,Math.min(10,stage|0));
+
+    const real=REAL_BGM[this.musicStage];
+    if(real){
+      this.startRealBgm(this.musicStage);
+      return;
+    }
+
+    // Prototype: from stage 3 onward, keep the existing synth engine for now.
     if(this.bgmTimer)return;
     this.ensure();
     if(!this.ctx)return;
-
     this.bgmMode='score';
     this.playStageScoreNext();
+  }
+
+  startRealBgm(stage){
+    const cfg=REAL_BGM[stage];
+    if(!cfg)return;
+
+    if(this.realAudio && this.realStage===stage){
+      this.realAudio.playbackRate=cfg.rate;
+      this.realAudio.volume=cfg.volume;
+      this.realAudio.play().catch(()=>{});
+      return;
+    }
+
+    if(this.realAudio){
+      this.realAudio.pause();
+      this.realAudio.src='';
+      this.realAudio=null;
+    }
+
+    this.stopSynthBgm();
+
+    const a=new Audio();
+    a.src=cfg.url;
+    a.loop=true;
+    a.preload='auto';
+    a.volume=cfg.volume;
+    a.playbackRate=cfg.rate;
+    if('preservesPitch' in a)a.preservesPitch=true;
+    if('webkitPreservesPitch' in a)a.webkitPreservesPitch=true;
+    if('mozPreservesPitch' in a)a.mozPreservesPitch=true;
+
+    a.addEventListener('error',()=>{
+      console.warn('Real BGM failed to load:',cfg.title);
+    });
+
+    this.realAudio=a;
+    this.realStage=stage;
+    this.musicStage=stage;
+    a.play().catch(()=>{});
+  }
+
+  stopSynthBgm(){
+    if(this.bgmTimer){
+      clearInterval(this.bgmTimer);
+      clearTimeout(this.bgmTimer);
+      this.bgmTimer=null;
+    }
   }
 
   playStageScoreNext(){
     if(!this.wantBgm)return;
     if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume().catch(()=>{});
 
-    const theme=STAGE_MUSIC[this.musicStage]||STAGE_MUSIC[1];
+    const theme=STAGE_MUSIC[this.musicStage]||STAGE_MUSIC[3];
     const score=theme.score;
     const beatMs=(60000/theme.bpm)*0.85;
     const [freq,beats]=score[this.odeIndex%score.length];
     const noteMs=beatMs*beats;
-
     const idx=this.odeIndex%score.length;
     const bar=Math.floor(idx/4)%4;
-
-    // Stage 2 gets a dedicated mix so the Mozart melody is unmistakable.
-    if(this.musicStage===2){
-      if(freq>0){
-        this.tone(freq,Math.max(.09,noteMs/1000*.94),0,.0155,'triangle','music',1,.12);
-        this.tone(freq*2,Math.max(.06,noteMs/1000*.72),.010,.0025,'sine','music',1,.07);
-      }
-
-      // Very light accompaniment; melody stays in front.
-      if(idx%8===0){
-        const bass=[196.00,146.83,164.81,146.83][Math.floor(idx/8)%4];
-        this.tone(bass,.30,0,.0038,'triangle','music',1,.07);
-        this.popKick(0,.010);
-      }else if(idx%4===0){
-        this.popKick(0,.006);
-      }
-
-      if(idx%3===0)this.popHat(0,.0022);
-
-      this.odeIndex=(this.odeIndex+1)%score.length;
-      this.bgmTimer=setTimeout(()=>{
-        this.bgmTimer=null;
-        this.playStageScoreNext();
-      },Math.max(85,noteMs));
-      return;
-    }
-
-    // stage-specific energy curve
     const energy=1+(this.musicStage-1)*.035;
     const roots=[130.81,110.00,123.47,98.00];
     const thirds=[164.81,138.59,146.83,123.47];
     const fifths=[196.00,164.81,185.00,146.83];
 
     if(freq>0){
-      // melody is deliberately loud and doubled
       this.tone(freq,Math.max(.080,noteMs/1000*.92),0,.0135*energy,'triangle','music',1,.13);
       this.tone(freq*2,Math.max(.055,noteMs/1000*.76),.010,.0032*energy,'sine','music',1,.08);
     }
 
-    // chord/bass pulse every 4 score events
     if(idx%4===0){
       this.tone(roots[bar],Math.max(.12,noteMs/1000*.9),0,.0048*energy,'triangle','music',1,.10);
       this.tone(thirds[bar]*2,.16,.006,.0020*energy,'sine','music',1,.07);
@@ -446,30 +487,58 @@ class AudioEngine{
 
   setStageMusic(stage){
     const next=Math.max(1,Math.min(10,stage|0));
-    if(this.musicStage===next&&this.bgmTimer)return;
+    if(this.musicStage===next){
+      if(REAL_BGM[next] && this.realAudio && !this.realAudio.paused)return;
+      if(!REAL_BGM[next] && this.bgmTimer)return;
+    }
+
     const shouldResume=this.wantBgm;
-    this.stopBgm(false);
+
+    if(this.realAudio){
+      this.realAudio.pause();
+      this.realAudio.currentTime=0;
+      this.realAudio.src='';
+      this.realAudio=null;
+      this.realStage=0;
+    }
+    this.stopSynthBgm();
+
     this.musicStage=next;
     this.bgmStep=0;
     this.odeIndex=0;
+
     if(shouldResume)this.startBgm(next);
   }
 
   stopBgm(permanent=true){
     if(permanent)this.wantBgm=false;
-    if(this.bgmTimer){
-      clearInterval(this.bgmTimer);
-      clearTimeout(this.bgmTimer);
-      this.bgmTimer=null;
+
+    if(this.realAudio){
+      this.realAudio.pause();
+      if(permanent){
+        this.realAudio.currentTime=0;
+        this.realAudio.src='';
+        this.realAudio=null;
+        this.realStage=0;
+      }
     }
+
+    this.stopSynthBgm();
   }
 
   pauseBgm(){
-    this.stopBgm(false);
+    if(this.realAudio)this.realAudio.pause();
+    this.stopSynthBgm();
   }
 
   resumeBgm(){
     if(!this.wantBgm)return;
+
+    if(REAL_BGM[this.musicStage]){
+      this.startRealBgm(this.musicStage);
+      return;
+    }
+
     this.ensure();
     if(!this.bgmTimer)this.startBgm(this.musicStage);
   }
@@ -607,7 +676,7 @@ class TitleScene extends Phaser.Scene{
     this.cameras.main.setBackgroundColor('#eef3f7');
 
     const {width:w,height:h}=this.scale;
-    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 3.8',{
+    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 4.0',{
       fontSize:'39px',fontStyle:'bold',color:'#17212b',stroke:'#fff',strokeThickness:3
     }).setOrigin(.5);
 
@@ -691,13 +760,13 @@ class GameScene extends Phaser.Scene{
     this.linesT=this.add.text(12,38,'LINES 0',{fontSize:'15px',color:'#111820'});
     this.levelT=this.add.text(12,60,'LEVEL 1',{fontSize:'14px',fontStyle:'bold',color:'#55636f'});
     this.stageT=this.add.text(this.scale.width/2,34,'STAGE 1 / 10',{fontSize:'14px',fontStyle:'bold',color:'#45525d'}).setOrigin(.5,0);
-    this.musicT=this.add.text(this.scale.width/2,54,'BGM: 歓喜の歌 - NEKO RUSH MIX',{fontSize:'11px',fontStyle:'bold',color:'#71808b'}).setOrigin(.5,0);
+    this.musicT=this.add.text(this.scale.width/2,54,'BGM: 歓喜の歌 〈REAL AUDIO 1.18×〉',{fontSize:'11px',fontStyle:'bold',color:'#71808b'}).setOrigin(.5,0);
 
     this.bestT=this.add.text(this.scale.width-12,12,'BEST '+this.best,{
       fontSize:'14px',fontStyle:'bold',color:'#45525d'
     }).setOrigin(1,0);
 
-    this.add.text(this.scale.width/2,12,'v3.8',{
+    this.add.text(this.scale.width/2,12,'v4.0',{
       fontSize:'12px',fontStyle:'bold',color:'#7b8791'
     }).setOrigin(.5,0);
 
@@ -1400,8 +1469,9 @@ class GameScene extends Phaser.Scene{
     this.linesT.setText('LINES '+this.lines);
     this.levelT.setText('LEVEL '+this.level);
     this.stageT.setText('STAGE '+this.currentStage()+' / 10');
-    const themeName=(STAGE_MUSIC[this.currentStage()]||STAGE_MUSIC[1]).name;
-    this.musicT.setText('BGM: '+themeName);
+    const stageNo=this.currentStage();
+    const themeName=REAL_BGM[stageNo]?.title || (STAGE_MUSIC[stageNo]||STAGE_MUSIC[1]).name;
+    this.musicT.setText('BGM: '+themeName+(REAL_BGM[stageNo]?' 〈REAL AUDIO 1.18×〉':''));
 
     if(this.score>this.best){
       this.best=this.score;

@@ -1,0 +1,18 @@
+NEKO BLOCKS DX 4.0 - Audio Prototype
+
+This prototype uses externally streamed audio for Stage 1 and Stage 2.
+
+Stage 1:
+- Beethoven: Ode to Joy
+- Wikimedia Commons: File:Ode to Joy.ogg
+- Public Domain Mark / free of known copyright restrictions
+- https://commons.wikimedia.org/wiki/File:Ode_to_Joy.ogg
+
+Stage 2:
+- Mozart: Eine kleine Nachtmusik, K.525, 1st movement
+- Wikimedia Commons: File:Mozart K525 Serenade in G Major 1 - Allegro.ogg
+- Wikimedia Commons describes the source as a public-domain work from Musopen
+- https://commons.wikimedia.org/wiki/File:Mozart_K525_Serenade_in_G_Major_1_-_Allegro.ogg
+
+The files are not bundled in this ZIP. They are streamed from Wikimedia Commons.
+Playback rate is set to 1.18x for game use.
