@@ -4,7 +4,8 @@
 const CFG = {
   cols:10, rows:20, cell:30,
   baseFall:690, minFall:118,
-  das:150, arr:48, softDrop:46,
+  das:130, arr:40, softDrop:40,
+  lockDelay:420, maxLockResets:12,
   targetFPS:60,
   dogChance:.12,
   screenShake:true,
@@ -84,11 +85,12 @@ class AudioManager{
     s.buffer=b;s.connect(f);f.connect(g);g.connect(this.sfx);s.start()
   }
   move(){if(!SETTINGS.se)return;this.ensure();this.tone(260,.045,0,.007,'square','sfx',.02,1.03)}
-  rotate(){if(!SETTINGS.se)return;this.ensure();this.tone(420,.06,0,.009,'triangle','sfx',.03,1.12)}
-  drop(){if(!SETTINGS.se)return;this.ensure();this.tone(120,.11,0,.025,'sine','sfx',.05,.72);this.noise(.055,.016,700)}
+  rotate(){if(!SETTINGS.se)return;this.ensure();this.tone(420,.055,0,.008,'triangle','sfx',.04,1.13);this.tone(680,.04,.015,.004,'sine','sfx',.03,1.02)}
+  land(){if(!SETTINGS.se)return;this.ensure();this.tone(105,.10,0,.025,'sine','sfx',.06,.74);this.tone(185,.055,.012,.008,'triangle','sfx',.04,.86)}
+  drop(){if(!SETTINGS.se)return;this.ensure();this.tone(145,.09,0,.022,'sine','sfx',.05,.72);this.tone(78,.14,.018,.018,'triangle','sfx',.08,.82);this.noise(.06,.018,700)}
   line(n,combo){
     if(!SETTINGS.se)return;this.ensure();
-    const chord=n===4?[523,659,784,1047]:[440,554,659];
+    const chord=n===4?[587,740,880,1175,1480]:n===3?[523,659,784,1047]:n===2?[494,622,740,988]:[440,554,659];
     chord.forEach((f,i)=>this.tone(f*(1+combo*.015),.18,i*.035,.018,'triangle','sfx',.14,1.02));
     this.noise(.12,.022,1600)
   }
@@ -149,7 +151,7 @@ class TitleScene extends Phaser.Scene{
     setControlsVisible(false);
     const {width:w,height:h}=this.scale;this.cameras.main.setBackgroundColor('#eef3f7');
     const bg=this.add.graphics();bg.fillStyle(0xdce7ef,.55);for(let i=0;i<12;i++)bg.fillCircle(Math.random()*w,Math.random()*h,3+Math.random()*8);
-    this.add.text(w/2,h*.22,'NEKO BLOCKS DX',{fontFamily:'system-ui',fontSize:'42px',fontStyle:'bold',color:'#15202a',stroke:'#ffffff',strokeThickness:3}).setOrigin(.5);
+    this.add.text(w/2,h*.22,'NEKO BLOCKS DX 2.1b',{fontFamily:'system-ui',fontSize:'42px',fontStyle:'bold',color:'#15202a',stroke:'#ffffff',strokeThickness:3}).setOrigin(.5);
     this.add.text(w/2,h*.29,'PHASER EDITION',{fontSize:'15px',fontStyle:'bold',color:'#6a7885',letterSpacing:2}).setOrigin(.5);
     const hero=this.add.image(w/2,h*.41,'cat4').setScale(2.2);
     this.tweens.add({targets:hero,y:hero.y-8,angle:{from:-2,to:2},yoyo:true,repeat:-1,duration:900,ease:'Sine.inOut'});
@@ -199,7 +201,7 @@ class GameScene extends Phaser.Scene{
     this.bw=CFG.cols*CFG.cell;this.bh=CFG.rows*CFG.cell;this.bx=Math.round(w/2-this.bw/2);this.by=82;
     this.board=Array.from({length:CFG.rows},()=>Array(CFG.cols).fill(null));
     this.score=0;this.lines=0;this.combo=-1;this.level=1;this.ended=false;this.paused=false;
-    this.lastKey='';this.streak=0;this.fallTimer=0;this.holdDir=0;this.dasTimer=0;this.arrTimer=0;this.downHeld=false;
+    this.lastKey='';this.streak=0;this.fallTimer=0;this.lockTimer=0;this.lockResets=0;this.holdDir=0;this.dasTimer=0;this.arrTimer=0;this.downHeld=false;
     this.best=Store.best();
     this.cameras.main.setBackgroundColor('#f4f7f9');
 
@@ -213,6 +215,7 @@ class GameScene extends Phaser.Scene{
     this.linesT=this.add.text(12,38,'LINES 0',{fontSize:'15px',color:'#111820'});
     this.levelT=this.add.text(12,60,'LEVEL 1',{fontSize:'14px',fontStyle:'bold',color:'#55636f'});
     this.bestT=this.add.text(w-12,12,'BEST '+this.best,{fontSize:'14px',fontStyle:'bold',color:'#45525d'}).setOrigin(1,0);
+    this.add.text(w/2,12,'v2.1b',{fontSize:'12px',fontStyle:'bold',color:'#7b8791'}).setOrigin(.5,0);
     this.add.text(w-12,35,'NEXT',{fontSize:'13px',fontStyle:'bold',color:'#45525d'}).setOrigin(1,0);
     this.nextLayer=this.add.container().setDepth(5);
     this.comboT=this.add.text(w/2,this.by+this.bh*.38,'',{fontSize:'34px',fontStyle:'bold',color:'#ffffff',stroke:'#111820',strokeThickness:5}).setOrigin(.5).setDepth(25).setAlpha(0);
@@ -245,7 +248,7 @@ class GameScene extends Phaser.Scene{
   }
   spawn(){
     this.piece=this.next;this.piece.x=Math.floor((CFG.cols-this.piece.shape[0].length)/2);this.piece.y=-1;this.next=this.newPiece();
-    this.fallTimer=0;
+    this.fallTimer=0;this.lockTimer=0;this.lockResets=0;
     if(this.collide(this.piece,0,1)){this.gameOver();return}
     this.redraw()
   }
@@ -258,29 +261,28 @@ class GameScene extends Phaser.Scene{
   }
   move(dx,play=true){
     if(this.paused||this.ended)return;
-    if(!this.collide(this.piece,dx,0)){this.piece.x+=dx;if(play)AUDIO.move();this.redraw()}
+    if(!this.collide(this.piece,dx,0)){this.piece.x+=dx;if(this.collide(this.piece,0,1)&&this.lockResets<CFG.maxLockResets){this.lockTimer=0;this.lockResets++}if(play)AUDIO.move();this.redraw()}
   }
   rotate(){
     if(this.paused||this.ended)return;
     const r=rotCW(this.piece.shape),kicks=[0,-1,1,-2,2];
-    for(const k of kicks)if(!this.collide(this.piece,k,0,r)){this.piece.x+=k;this.piece.shape=r;AUDIO.rotate();this.redraw();return}
+    for(const k of kicks)if(!this.collide(this.piece,k,0,r)){this.piece.x+=k;this.piece.shape=r;if(this.collide(this.piece,0,1)&&this.lockResets<CFG.maxLockResets){this.lockTimer=0;this.lockResets++}AUDIO.rotate();this.redraw();return}
   }
   stepDown(manual=false){
     if(this.paused||this.ended)return;
     if(!this.collide(this.piece,0,1)){
       this.piece.y++;
+      this.lockTimer=0;
       if(manual)this.score++;
       this.updateHUD();
       this.redraw();
-    }else{
-      this.lock();
     }
   }
   softDrop(){this.stepDown(true)}
   hardDrop(){
     if(this.paused||this.ended)return;let n=0;
     while(!this.collide(this.piece,0,1)){this.piece.y++;n++}
-    this.score+=n*2;AUDIO.drop();this.dropTrail(n);this.lock()
+    this.score+=n*2;AUDIO.drop();this.dropTrail(n);this.cameras.main.flash(45,255,255,255);if(SETTINGS.screenShake)this.cameras.main.shake(65,.0035);this.lock()
   }
   dropTrail(n){
     if(n<2)return;const x=this.bx+(this.piece.x+this.piece.shape[0].length/2)*CFG.cell,y=this.by+(this.piece.y)*CFG.cell;
@@ -292,14 +294,14 @@ class GameScene extends Phaser.Scene{
       if(!this.piece.shape[y][x])continue;const by=this.piece.y+y,bx=this.piece.x+x;
       if(by>=0)this.board[by][bx]={idx:this.piece.idx,dog:this.piece.dog}
     }
-    this.piece.dog?AUDIO.bark():AUDIO.meow();
+    this.piece.dog?AUDIO.bark():AUDIO.meow();AUDIO.land();
     if(SETTINGS.screenShake)this.cameras.main.shake(55,.0018);
     this.resolveLines();if(!this.ended)this.spawn()
   }
   resolveLines(){
     const rows=[];for(let y=CFG.rows-1;y>=0;y--)if(this.board[y].every(Boolean))rows.push(y);
     if(!rows.length){this.combo=-1;return}
-    this.combo++;AUDIO.line(rows.length,this.combo);rows.forEach(y=>this.rowFX(y,rows.length));
+    this.combo++;AUDIO.line(rows.length,this.combo);rows.forEach(y=>this.rowFX(y,rows.length));if(rows.length===4)this.fourLineFX();
     const remove=new Set(rows);
     this.board=this.board.filter((_,idx)=>!remove.has(idx));
     while(this.board.length<CFG.rows)this.board.unshift(Array(CFG.cols).fill(null));
@@ -320,6 +322,11 @@ class GameScene extends Phaser.Scene{
     }
     const ring=this.add.circle(this.bx+this.bw/2,cy,8).setStrokeStyle(count===4?7:4,0xffe9a5,.95).setDepth(23);
     this.tweens.add({targets:ring,scaleX:24,scaleY:8,alpha:0,duration:360,onComplete:()=>ring.destroy()})
+  }
+  fourLineFX(){
+    const t=this.add.text(this.scale.width/2,this.by+120,'4 LINES!',{fontSize:'40px',fontStyle:'bold',color:'#fff2a8',stroke:'#17212b',strokeThickness:6}).setOrigin(.5).setDepth(35).setScale(.55);
+    this.cameras.main.flash(120,255,235,160);
+    this.tweens.add({targets:t,scale:1.15,y:t.y-24,duration:220,ease:'Back.easeOut',hold:420,yoyo:true,onComplete:()=>t.destroy()});
   }
   levelUp(){
     AUDIO.level();this.cameras.main.flash(180,255,242,184);
@@ -419,6 +426,12 @@ class GameScene extends Phaser.Scene{
     if(this.paused||this.ended)return;
     this.fallTimer+=delta;const fd=this.downHeld?CFG.softDrop:this.fallDelay();
     if(this.fallTimer>=fd){this.stepDown(this.downHeld);this.fallTimer=0}
+    if(this.collide(this.piece,0,1)){
+      this.lockTimer+=delta;
+      if(this.lockTimer>=CFG.lockDelay){this.lock();return}
+    }else{
+      this.lockTimer=0;
+    }
     if(this.holdDir){
       this.dasTimer+=delta;
       if(this.dasTimer>CFG.das){this.arrTimer+=delta;if(this.arrTimer>CFG.arr){this.move(this.holdDir,false);this.arrTimer=0}}
