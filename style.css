@@ -21,7 +21,47 @@
     #left{left:8%}#right{right:8%}#rotate{left:8%}#down{right:8%}#drop{left:7%}#pause{right:8%}
   }
 
+/* 2.1b tactile polish */
+#mobileControls .ctrl,
+#controls button{
+  transition: transform .045s ease, background .08s ease, box-shadow .08s ease;
+}
+#mobileControls .ctrl.pressed,
+#controls button.pressed{
+  transform: scale(.92);
+  background: rgba(255,255,255,.70)!important;
+  box-shadow: 0 2px 8px rgba(0,0,0,.18), inset 0 1px rgba(255,255,255,.95)!important;
+}
 
-/* NEKO BLOCKS DX 2.1 polish */
-#controls button{transition:transform .045s ease,background .08s ease,box-shadow .08s ease}
-#controls button.pressed{transform:scale(.93);background:rgba(255,255,255,.66)!important;box-shadow:0 2px 8px rgba(0,0,0,.16),inset 0 1px rgba(255,255,255,.9)}
+
+/* ===== NEKO BLOCKS DX 2.2 polish ===== */
+body{
+  background:
+    radial-gradient(circle at 50% 15%, rgba(255,255,255,.88), rgba(238,243,247,.98) 42%, rgba(225,232,238,1) 100%);
+}
+
+#controls button{
+  border-radius:22px;
+  border:1px solid rgba(20,30,40,.30);
+  background:rgba(255,255,255,.34);
+  box-shadow:
+    0 10px 26px rgba(0,0,0,.10),
+    inset 0 1px 0 rgba(255,255,255,.85);
+}
+
+#controls button::after{
+  content:"";
+  position:absolute;
+  inset:6px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.28);
+  pointer-events:none;
+}
+
+#controls button.pressed{
+  transform:translateY(2px) scale(.92);
+  background:rgba(255,255,255,.74)!important;
+  box-shadow:
+    0 3px 10px rgba(0,0,0,.16),
+    inset 0 1px 0 rgba(255,255,255,.95)!important;
+}

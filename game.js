@@ -16,6 +16,11 @@ const CFG = {
 
 const COLORS=[0xe76f91,0xf2c94c,0x5cc58a,0x56a3e6,0x9b7be6,0xef9a52,0x58c5d1];
 const NAMES=['T','O','S','Z','I','L','J'];
+const LEVEL_BACKGROUNDS=[
+  0xeef3f7,0xeaf3f0,0xf2efe8,0xefeaf4,0xe8f0f6,
+  0xf4ece8,0xe9f2ee,0xeeeaf5
+];
+
 const SHAPES=[
   [[1,1,1],[0,1,0]],
   [[1,1],[1,1]],
@@ -151,7 +156,7 @@ class TitleScene extends Phaser.Scene{
     setControlsVisible(false);
     const {width:w,height:h}=this.scale;this.cameras.main.setBackgroundColor('#eef3f7');
     const bg=this.add.graphics();bg.fillStyle(0xdce7ef,.55);for(let i=0;i<12;i++)bg.fillCircle(Math.random()*w,Math.random()*h,3+Math.random()*8);
-    this.add.text(w/2,h*.22,'NEKO BLOCKS DX 2.1b',{fontFamily:'system-ui',fontSize:'42px',fontStyle:'bold',color:'#15202a',stroke:'#ffffff',strokeThickness:3}).setOrigin(.5);
+    this.add.text(w/2,h*.22,'NEKO BLOCKS DX 2.2',{fontFamily:'system-ui',fontSize:'42px',fontStyle:'bold',color:'#15202a',stroke:'#ffffff',strokeThickness:3}).setOrigin(.5);
     this.add.text(w/2,h*.29,'PHASER EDITION',{fontSize:'15px',fontStyle:'bold',color:'#6a7885',letterSpacing:2}).setOrigin(.5);
     const hero=this.add.image(w/2,h*.41,'cat4').setScale(2.2);
     this.tweens.add({targets:hero,y:hero.y-8,angle:{from:-2,to:2},yoyo:true,repeat:-1,duration:900,ease:'Sine.inOut'});
@@ -215,7 +220,7 @@ class GameScene extends Phaser.Scene{
     this.linesT=this.add.text(12,38,'LINES 0',{fontSize:'15px',color:'#111820'});
     this.levelT=this.add.text(12,60,'LEVEL 1',{fontSize:'14px',fontStyle:'bold',color:'#55636f'});
     this.bestT=this.add.text(w-12,12,'BEST '+this.best,{fontSize:'14px',fontStyle:'bold',color:'#45525d'}).setOrigin(1,0);
-    this.add.text(w/2,12,'v2.1b',{fontSize:'12px',fontStyle:'bold',color:'#7b8791'}).setOrigin(.5,0);
+    this.add.text(w/2,12,'v2.2',{fontSize:'12px',fontStyle:'bold',color:'#7b8791'}).setOrigin(.5,0);
     this.add.text(w-12,35,'NEXT',{fontSize:'13px',fontStyle:'bold',color:'#45525d'}).setOrigin(1,0);
     this.nextLayer=this.add.container().setDepth(5);
     this.comboT=this.add.text(w/2,this.by+this.bh*.38,'',{fontSize:'34px',fontStyle:'bold',color:'#ffffff',stroke:'#111820',strokeThickness:5}).setOrigin(.5).setDepth(25).setAlpha(0);
@@ -245,6 +250,29 @@ class GameScene extends Phaser.Scene{
       return {idx,shape:cloneShape(SHAPES[idx]),dog,color:COLORS[idx],key,x:0,y:0}
     }
     const idx=this.pickIndex();return {idx,shape:cloneShape(SHAPES[idx]),dog:false,color:COLORS[idx],key:'C'+idx,x:0,y:0}
+  }
+  applyLevelTheme(){
+    const c=LEVEL_BACKGROUNDS[(this.level-1)%LEVEL_BACKGROUNDS.length];
+    this.cameras.main.setBackgroundColor(c);
+  }
+  showClearLabel(n){
+    const labels={1:'SINGLE',2:'DOUBLE',3:'TRIPLE',4:'QUAD!'};
+    this.clearT.setText(labels[n]||('CLEAR ×'+n)).setAlpha(1).setScale(.72).setY(this.by+175);
+    this.tweens.killTweensOf(this.clearT);
+    this.tweens.add({
+      targets:this.clearT,scale:1.04,y:this.clearT.y-18,duration:150,ease:'Back.easeOut',
+      hold:220,yoyo:true,onComplete:()=>this.clearT.setAlpha(0)
+    });
+  }
+  landingPulse(){
+    if(!this.active || !this.active.list.length)return;
+    this.tweens.add({
+      targets:this.active.list,
+      scaleX:{from:1.10,to:1},
+      scaleY:{from:.84,to:1},
+      duration:95,
+      ease:'Back.easeOut'
+    });
   }
   spawn(){
     this.piece=this.next;this.piece.x=Math.floor((CFG.cols-this.piece.shape[0].length)/2);this.piece.y=-1;this.next=this.newPiece();
@@ -282,7 +310,7 @@ class GameScene extends Phaser.Scene{
   hardDrop(){
     if(this.paused||this.ended)return;let n=0;
     while(!this.collide(this.piece,0,1)){this.piece.y++;n++}
-    this.score+=n*2;AUDIO.drop();this.dropTrail(n);this.cameras.main.flash(45,255,255,255);if(SETTINGS.screenShake)this.cameras.main.shake(65,.0035);this.lock()
+    this.score+=n*2;AUDIO.drop();this.dropTrail(n);this.landingPulse();this.cameras.main.flash(45,255,255,255);if(SETTINGS.screenShake)this.cameras.main.shake(65,.0035);this.lock()
   }
   dropTrail(n){
     if(n<2)return;const x=this.bx+(this.piece.x+this.piece.shape[0].length/2)*CFG.cell,y=this.by+(this.piece.y)*CFG.cell;
@@ -294,25 +322,27 @@ class GameScene extends Phaser.Scene{
       if(!this.piece.shape[y][x])continue;const by=this.piece.y+y,bx=this.piece.x+x;
       if(by>=0)this.board[by][bx]={idx:this.piece.idx,dog:this.piece.dog}
     }
-    this.piece.dog?AUDIO.bark():AUDIO.meow();AUDIO.land();
+    this.landingPulse();this.piece.dog?AUDIO.bark():AUDIO.meow();AUDIO.land();
     if(SETTINGS.screenShake)this.cameras.main.shake(55,.0018);
     this.resolveLines();if(!this.ended)this.spawn()
   }
   resolveLines(){
     const rows=[];for(let y=CFG.rows-1;y>=0;y--)if(this.board[y].every(Boolean))rows.push(y);
     if(!rows.length){this.combo=-1;return}
-    this.combo++;AUDIO.line(rows.length,this.combo);rows.forEach(y=>this.rowFX(y,rows.length));if(rows.length===4)this.fourLineFX();
+    this.combo++;AUDIO.line(rows.length,this.combo);this.showClearLabel(rows.length);rows.forEach(y=>this.rowFX(y,rows.length));if(rows.length===4)this.fourLineFX();
     const remove=new Set(rows);
     this.board=this.board.filter((_,idx)=>!remove.has(idx));
     while(this.board.length<CFG.rows)this.board.unshift(Array(CFG.cols).fill(null));
     const base=[0,100,300,500,800][rows.length]||1000;this.score+=Math.round(base*(1+this.combo*.25)*this.level);
     const beforeLevel=this.level;this.lines+=rows.length;this.level=1+Math.floor(this.lines/10);
     if(this.combo>0)this.showCombo();
-    if(this.level>beforeLevel)this.levelUp();
+    if(this.level>beforeLevel){this.applyLevelTheme();this.levelUp();}
     this.updateHUD()
   }
   rowFX(row,count){
     const cy=this.by+row*CFG.cell+CFG.cell/2;
+    const beam=this.add.rectangle(this.bx+this.bw/2,cy,this.bw+12,CFG.cell-3,0xffffff,.72).setDepth(25).setScale(.12,1);
+    this.tweens.add({targets:beam,scaleX:1.08,alpha:0,duration:230,ease:'Cubic.easeOut',onComplete:()=>beam.destroy()});
     this.cameras.main.flash(70,255,255,255);if(SETTINGS.screenShake)this.cameras.main.shake(110,count===4?.009:.005);
     const total=count===4?105:62;
     for(let i=0;i<total;i++){
@@ -372,7 +402,12 @@ class GameScene extends Phaser.Scene{
   }
   fallDelay(){return Math.max(CFG.minFall,CFG.baseFall-(this.level-1)*52)}
   togglePause(){
-    if(this.ended)return;this.paused=!this.paused;this.pauseT.setVisible(this.paused);document.getElementById('pause').textContent=this.paused?'▶':'Ⅱ';
+    if(this.ended)return;this.paused=!this.paused;this.pauseT.setVisible(this.paused);
+    if(this.paused && !this.pauseDim){
+      this.pauseDim=this.add.rectangle(this.scale.width/2,this.scale.height/2,this.scale.width,this.scale.height,0x091119,.24).setDepth(58);
+    }else if(!this.paused && this.pauseDim){
+      this.pauseDim.destroy();this.pauseDim=null;
+    }document.getElementById('pause').textContent=this.paused?'▶':'Ⅱ';
     if(this.paused)AUDIO.stopBgm();else AUDIO.startBgm()
   }
   gameOver(){
@@ -386,7 +421,7 @@ class GameScene extends Phaser.Scene{
     const {width:w,height:h}=this.scale;
     const shade=this.add.rectangle(w/2,h/2,w,h,0x071019,.68).setDepth(40).setInteractive();
     const card=this.add.rectangle(w/2,h*.47,330,330,0xf7fafc,1).setStrokeStyle(2,0xc5d0d8).setDepth(41);
-    this.add.text(w/2,h*.33,'GAME OVER',{fontSize:'38px',fontStyle:'bold',color:'#18222b'}).setOrigin(.5).setDepth(42);
+    this.add.text(w/2,h*.33,'GAME OVER',{fontSize:'40px',fontStyle:'bold',color:'#fff',stroke:'#000',strokeThickness:3,fontStyle:'bold',color:'#18222b'}).setOrigin(.5).setDepth(42);
     this.add.text(w/2,h*.415,`SCORE  ${this.score}\nLINES  ${this.lines}\nLEVEL  ${this.level}\nBEST   ${this.best}`,{fontSize:'18px',fontStyle:'bold',color:'#374652',align:'center',lineSpacing:9}).setOrigin(.5).setDepth(42);
     const retry=this.add.rectangle(w/2,h*.58,190,52,0xf0c86c).setDepth(42).setInteractive();this.add.text(w/2,h*.58,'RETRY',{fontSize:'19px',fontStyle:'bold',color:'#111820'}).setOrigin(.5).setDepth(43);
     const title=this.add.rectangle(w/2,h*.66,150,40,0xdde6ec).setDepth(42).setInteractive();this.add.text(w/2,h*.66,'TITLE',{fontSize:'15px',fontStyle:'bold',color:'#26333e'}).setOrigin(.5).setDepth(43);
