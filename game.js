@@ -71,12 +71,26 @@ const STAGE_MUSIC=[
     ]
   },
   {
-    name:'アイネ・クライネ・ナハトムジーク', bpm:160,
+    name:'アイネ・クライネ・ナハトムジーク - NEKO RUSH MIX', bpm:156,
     score:[
-      [392.00,.25],[0,.12],[392.00,.13],[587.33,.38],[392.00,.12],
-      [783.99,.5],[587.33,.25],[783.99,.25],[587.33,.25],[783.99,.25],
-      [493.88,.38],[587.33,.12],[523.25,.25],[440.00,.25],
-      [523.25,.25],[440.00,.25],[392.00,.5],[587.33,.25],[783.99,.5]
+      // Famous opening motif, articulated with rests and varied durations
+      [392.00,.50],[0,.10],[392.00,.15],[587.33,.75],
+      [0,.10],[392.00,.15],[783.99,.75],
+      [0,.10],[587.33,.25],[783.99,.50],
+      [0,.10],[587.33,.25],[783.99,.50],
+
+      [493.88,.50],[0,.08],[587.33,.20],
+      [523.25,.40],[440.00,.40],
+      [523.25,.40],[440.00,.40],
+      [392.00,.70],
+
+      [587.33,.30],[0,.08],[783.99,.50],
+      [587.33,.30],[783.99,.50],
+      [880.00,.55],[783.99,.30],[698.46,.30],
+      [659.25,.35],[587.33,.35],[523.25,.55],
+
+      [392.00,.50],[0,.10],[392.00,.15],[587.33,.75],
+      [0,.10],[392.00,.15],[783.99,.75]
     ]
   },
   {
@@ -373,6 +387,32 @@ class AudioEngine{
     const idx=this.odeIndex%score.length;
     const bar=Math.floor(idx/4)%4;
 
+    // Stage 2 gets a dedicated mix so the Mozart melody is unmistakable.
+    if(this.musicStage===2){
+      if(freq>0){
+        this.tone(freq,Math.max(.09,noteMs/1000*.94),0,.0155,'triangle','music',1,.12);
+        this.tone(freq*2,Math.max(.06,noteMs/1000*.72),.010,.0025,'sine','music',1,.07);
+      }
+
+      // Very light accompaniment; melody stays in front.
+      if(idx%8===0){
+        const bass=[196.00,146.83,164.81,146.83][Math.floor(idx/8)%4];
+        this.tone(bass,.30,0,.0038,'triangle','music',1,.07);
+        this.popKick(0,.010);
+      }else if(idx%4===0){
+        this.popKick(0,.006);
+      }
+
+      if(idx%3===0)this.popHat(0,.0022);
+
+      this.odeIndex=(this.odeIndex+1)%score.length;
+      this.bgmTimer=setTimeout(()=>{
+        this.bgmTimer=null;
+        this.playStageScoreNext();
+      },Math.max(85,noteMs));
+      return;
+    }
+
     // stage-specific energy curve
     const energy=1+(this.musicStage-1)*.035;
     const roots=[130.81,110.00,123.47,98.00];
@@ -567,7 +607,7 @@ class TitleScene extends Phaser.Scene{
     this.cameras.main.setBackgroundColor('#eef3f7');
 
     const {width:w,height:h}=this.scale;
-    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 3.7',{
+    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 3.8',{
       fontSize:'39px',fontStyle:'bold',color:'#17212b',stroke:'#fff',strokeThickness:3
     }).setOrigin(.5);
 
@@ -657,7 +697,7 @@ class GameScene extends Phaser.Scene{
       fontSize:'14px',fontStyle:'bold',color:'#45525d'
     }).setOrigin(1,0);
 
-    this.add.text(this.scale.width/2,12,'v3.7',{
+    this.add.text(this.scale.width/2,12,'v3.8',{
       fontSize:'12px',fontStyle:'bold',color:'#7b8791'
     }).setOrigin(.5,0);
 
@@ -1361,7 +1401,7 @@ class GameScene extends Phaser.Scene{
     this.levelT.setText('LEVEL '+this.level);
     this.stageT.setText('STAGE '+this.currentStage()+' / 10');
     const themeName=(STAGE_MUSIC[this.currentStage()]||STAGE_MUSIC[1]).name;
-    this.musicT.setText('BGM: '+themeName+' 〈MELODY MIX〉');
+    this.musicT.setText('BGM: '+themeName);
 
     if(this.score>this.best){
       this.best=this.score;
