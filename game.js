@@ -53,9 +53,9 @@ const Store={
 let SETTINGS=Store.load();
 
 class AudioManager{
-  constructor(){this.ctx=null;this.master=null;this.music=null;this.sfx=null;this.comp=null;this.rev=null;this.echo=null;this.echoFB=null;this.echoWet=null;this.bgmTimer=null;this.step=0}
+  constructor(){this.ctx=null;this.master=null;this.music=null;this.sfx=null;this.comp=null;this.rev=null;this.echo=null;this.echoFB=null;this.echoWet=null;this.bgmTimer=null;this.step=0;this.wantBgm=false}
   ensure(){
-    if(this.ctx){if(this.ctx.state==='suspended')this.ctx.resume();return}
+    if(this.ctx){if(this.ctx.state==='suspended')this.ctx.resume().catch(()=>{});return}
     const A=window.AudioContext||window.webkitAudioContext;
     if(!A)return;
     this.ctx=new A();
@@ -157,13 +157,14 @@ class AudioManager{
     this.noise(.16,.012,2100);
   }
   gameOver(){
-    this.stopBgm();if(!SETTINGS.se)return;this.ensure();
+    this.stopBgm(true);if(!SETTINGS.se)return;this.ensure();
     [[392,.18,0],[330,.18,.18],[262,.21,.36],[220,.22,.56],[196,.48,.76]].forEach(n=>this.tone(n[0],n[1],n[2],.022,'triangle','sfx',.20,.965));
   }
   startBgm(){
-    if(this.bgmTimer||!SETTINGS.bgm)return;this.ensure();if(!this.ctx)return;
-    // Original synthesized arrangement using the public-domain Canon in D harmonic progression.
-    const bass=[147.0,110.0,123.47,92.50,98.00,73.42,98.00,110.0]; // D A Bm F#m G D G A
+    this.wantBgm=true;
+    if(this.bgmTimer||!SETTINGS.bgm)return;
+    this.ensure();if(!this.ctx)return;
+    const bass=[147.0,110.0,123.47,92.50,98.00,73.42,98.00,110.0];
     const arp=[
       [293.66,369.99,440.00],[277.18,369.99,440.00],[246.94,293.66,369.99],[277.18,369.99,440.00],
       [246.94,293.66,392.00],[220.00,293.66,369.99],[246.94,293.66,392.00],[277.18,329.63,440.00]
@@ -175,21 +176,28 @@ class AudioManager{
       329.63,369.99,440.00,493.88,554.37,587.33,659.25,739.99
     ];
     const tick=()=>{
-      if(!SETTINGS.bgm)return;
+      if(!SETTINGS.bgm||!this.wantBgm)return;
+      if(this.ctx && this.ctx.state==='suspended') this.ctx.resume().catch(()=>{});
       const i=this.step%melody.length,bar=(this.step/4|0)%8,sub=this.step%4;
-      this.stringNote(melody[i],.42,0,.0049);
-      if(this.step>=8)this.stringNote(melody[(i+24)%32]*.999,.40,.026,.0029);
-      const chord=arp[bar];
-      this.pluck(chord[sub%3],.20,.01,.0035);
-      if(sub===0){
-        this.stringNote(bass[bar],.72,0,.0057);
-        this.stringNote(bass[bar]*2,.52,.018,.0022);
-      }
+      // Mobile-safe arrangement: one melody + light pluck + bass
+      this.stringNote(melody[i],.38,0,.0043);
+      if(sub%2===0)this.pluck(arp[bar][sub%3],.18,.008,.0030);
+      if(sub===0)this.stringNote(bass[bar],.62,0,.0047);
       this.step++;
     };
-    tick();this.bgmTimer=setInterval(tick,215);
+    tick();
+    this.bgmTimer=setInterval(tick,230);
   }
-  stopBgm(){if(this.bgmTimer){clearInterval(this.bgmTimer);this.bgmTimer=null}}
+  stopBgm(permanent=true){
+    if(permanent)this.wantBgm=false;
+    if(this.bgmTimer){clearInterval(this.bgmTimer);this.bgmTimer=null}
+  }
+  resumeBgm(){
+    if(!SETTINGS.bgm||!this.wantBgm)return;
+    this.ensure();
+    if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume().catch(()=>{});
+    if(!this.bgmTimer)this.startBgm();
+  }
 }
 const AUDIO=new AudioManager();
 
@@ -223,7 +231,7 @@ class TitleScene extends Phaser.Scene{
     setControlsVisible(false);
     const {width:w,height:h}=this.scale;this.cameras.main.setBackgroundColor('#eef3f7');
     const bg=this.add.graphics();bg.fillStyle(0xdce7ef,.55);for(let i=0;i<12;i++)bg.fillCircle(Math.random()*w,Math.random()*h,3+Math.random()*8);
-    this.add.text(w/2,h*.22,'NEKO BLOCKS DX 2.3',{fontFamily:'system-ui',fontSize:'42px',fontStyle:'bold',color:'#15202a',stroke:'#ffffff',strokeThickness:3}).setOrigin(.5);
+    this.add.text(w/2,h*.22,'NEKO BLOCKS DX 2.3.1',{fontFamily:'system-ui',fontSize:'42px',fontStyle:'bold',color:'#15202a',stroke:'#ffffff',strokeThickness:3}).setOrigin(.5);
     this.add.text(w/2,h*.29,'PHASER EDITION',{fontSize:'15px',fontStyle:'bold',color:'#6a7885',letterSpacing:2}).setOrigin(.5);
     const hero=this.add.image(w/2,h*.41,'cat4').setScale(2.2);
     this.tweens.add({targets:hero,y:hero.y-8,angle:{from:-2,to:2},yoyo:true,repeat:-1,duration:900,ease:'Sine.inOut'});
@@ -287,7 +295,7 @@ class GameScene extends Phaser.Scene{
     this.linesT=this.add.text(12,38,'LINES 0',{fontSize:'15px',color:'#111820'});
     this.levelT=this.add.text(12,60,'LEVEL 1',{fontSize:'14px',fontStyle:'bold',color:'#55636f'});
     this.bestT=this.add.text(w-12,12,'BEST '+this.best,{fontSize:'14px',fontStyle:'bold',color:'#45525d'}).setOrigin(1,0);
-    this.add.text(w/2,12,'v2.3',{fontSize:'12px',fontStyle:'bold',color:'#7b8791'}).setOrigin(.5,0);
+    this.add.text(w/2,12,'v2.3.1',{fontSize:'12px',fontStyle:'bold',color:'#7b8791'}).setOrigin(.5,0);
     this.add.text(w-12,35,'NEXT',{fontSize:'13px',fontStyle:'bold',color:'#45525d'}).setOrigin(1,0);
     this.nextLayer=this.add.container().setDepth(5);
     this.comboT=this.add.text(w/2,this.by+this.bh*.38,'',{fontSize:'34px',fontStyle:'bold',color:'#ffffff',stroke:'#111820',strokeThickness:5}).setOrigin(.5).setDepth(25).setAlpha(0);
@@ -343,7 +351,7 @@ class GameScene extends Phaser.Scene{
   }
   spawn(){
     this.piece=this.next;this.piece.x=Math.floor((CFG.cols-this.piece.shape[0].length)/2);this.piece.y=-1;this.next=this.newPiece();
-    this.fallTimer=0;this.lockTimer=0;this.lockResets=0;
+    this.fallTimer=0;this.lockTimer=0;this.lockResets=0;this.isLocking=false;
     if(this.collide(this.piece,0,1)){this.gameOver();return}
     this.redraw()
   }
@@ -375,16 +383,28 @@ class GameScene extends Phaser.Scene{
   }
   softDrop(){this.stepDown(true)}
   hardDrop(){
-    if(this.paused||this.ended)return;let n=0;
-    while(!this.collide(this.piece,0,1)){this.piece.y++;n++}
-    this.score+=n*2;AUDIO.drop();this.dropTrail(n);this.landingPulse();this.cameras.main.flash(45,255,255,255);if(SETTINGS.screenShake)this.cameras.main.shake(65,.0035);this.lock()
+    if(this.paused||this.ended||this.isLocking||!this.piece)return;
+    this.isLocking=true;
+    let n=0;
+    while(!this.collide(this.piece,0,1) && n<CFG.rows+4){
+      this.piece.y++;n++;
+    }
+    this.score+=n*2;
+    AUDIO.drop();
+    this.dropTrail(n);
+    this.landingPulse();
+    this.cameras.main.flash(45,255,255,255);
+    if(SETTINGS.screenShake)this.cameras.main.shake(65,.0035);
+    this.lock(true);
   }
   dropTrail(n){
     if(n<2)return;const x=this.bx+(this.piece.x+this.piece.shape[0].length/2)*CFG.cell,y=this.by+(this.piece.y)*CFG.cell;
     const r=this.add.rectangle(x,y,Math.max(8,this.piece.shape[0].length*CFG.cell*.35),Math.min(180,n*CFG.cell),0xffffff,.18).setDepth(10);
     this.tweens.add({targets:r,alpha:0,duration:120,onComplete:()=>r.destroy()})
   }
-  lock(){
+  lock(force=false){
+    if(!this.piece){this.isLocking=false;return}
+    if(!force && !this.collide(this.piece,0,1)){this.isLocking=false;return}
     for(let y=0;y<this.piece.shape.length;y++)for(let x=0;x<this.piece.shape[y].length;x++){
       if(!this.piece.shape[y][x])continue;const by=this.piece.y+y,bx=this.piece.x+x;
       if(by>=0)this.board[by][bx]={idx:this.piece.idx,dog:this.piece.dog}
@@ -530,7 +550,7 @@ class GameScene extends Phaser.Scene{
     if(this.fallTimer>=fd){this.stepDown(this.downHeld);this.fallTimer=0}
     if(this.collide(this.piece,0,1)){
       this.lockTimer+=delta;
-      if(this.lockTimer>=CFG.lockDelay){this.lock();return}
+      if(this.lockTimer>=CFG.lockDelay && !this.isLocking){this.isLocking=true;this.lock(true);return}
     }else{
       this.lockTimer=0;
     }
@@ -550,5 +570,8 @@ const config={
 };
 new Phaser.Game(config);
 
-document.addEventListener('visibilitychange',()=>{if(document.hidden)AUDIO.stopBgm()});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)AUDIO.stopBgm(false);
+  else AUDIO.resumeBgm();
+});
 })();
