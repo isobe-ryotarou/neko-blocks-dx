@@ -199,15 +199,15 @@ class AudioManager{
       if(!SETTINGS.bgm||!this.wantBgm)return;
       if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume().catch(()=>{});
       const i=this.step%lead.length,beat=this.step%8,bar=(this.step/8|0)%prog.length,p=prog[bar];
-      this.pluck(lead[i],.13,0,.0040);
+      if(beat%2===0)this.pluck(lead[i],.11,0,.0038);
       if(beat%2===0)this.pluck(p.c[(beat/2)%3|0],.16,.012,.0030);
       if(beat===0||beat===4)this.popKick(0,.017);
-      if(beat===2||beat===6)this.popHat(0,.0065);
+      if(beat===2||beat===6)this.popHat(0,.0072);if(beat===1||beat===3||beat===5||beat===7)this.popHat(0,.0034);
       if(beat===0)this.stringNote(p.b,.42,0,.0038);
       this.step++;
     };
     tick();
-    this.bgmTimer=setInterval(tick,145);
+    this.bgmTimer=setInterval(tick,114);
   }
   stopBgm(permanent=true){
     if(permanent)this.wantBgm=false;
@@ -252,7 +252,7 @@ class TitleScene extends Phaser.Scene{
     setControlsVisible(false);
     const {width:w,height:h}=this.scale;this.cameras.main.setBackgroundColor('#eef3f7');
     const bg=this.add.graphics();bg.fillStyle(0xdce7ef,.55);for(let i=0;i<12;i++)bg.fillCircle(Math.random()*w,Math.random()*h,3+Math.random()*8);
-    this.add.text(w/2,h*.22,'NEKO BLOCKS DX 2.3.2',{fontFamily:'system-ui',fontSize:'42px',fontStyle:'bold',color:'#15202a',stroke:'#ffffff',strokeThickness:3}).setOrigin(.5);
+    this.add.text(w/2,h*.22,'NEKO BLOCKS DX 2.3.3',{fontFamily:'system-ui',fontSize:'42px',fontStyle:'bold',color:'#15202a',stroke:'#ffffff',strokeThickness:3}).setOrigin(.5);
     this.add.text(w/2,h*.29,'PHASER EDITION',{fontSize:'15px',fontStyle:'bold',color:'#6a7885',letterSpacing:2}).setOrigin(.5);
     const hero=this.add.image(w/2,h*.41,'cat4').setScale(2.2);
     this.tweens.add({targets:hero,y:hero.y-8,angle:{from:-2,to:2},yoyo:true,repeat:-1,duration:900,ease:'Sine.inOut'});
@@ -316,7 +316,7 @@ class GameScene extends Phaser.Scene{
     this.linesT=this.add.text(12,38,'LINES 0',{fontSize:'15px',color:'#111820'});
     this.levelT=this.add.text(12,60,'LEVEL 1',{fontSize:'14px',fontStyle:'bold',color:'#55636f'});
     this.bestT=this.add.text(w-12,12,'BEST '+this.best,{fontSize:'14px',fontStyle:'bold',color:'#45525d'}).setOrigin(1,0);
-    this.add.text(w/2,12,'v2.3.2',{fontSize:'12px',fontStyle:'bold',color:'#7b8791'}).setOrigin(.5,0);
+    this.add.text(w/2,12,'v2.3.3',{fontSize:'12px',fontStyle:'bold',color:'#7b8791'}).setOrigin(.5,0);
     this.add.text(w-12,35,'NEXT',{fontSize:'13px',fontStyle:'bold',color:'#45525d'}).setOrigin(1,0);
     this.nextLayer=this.add.container().setDepth(5);
     this.comboT=this.add.text(w/2,this.by+this.bh*.38,'',{fontSize:'34px',fontStyle:'bold',color:'#ffffff',stroke:'#111820',strokeThickness:5}).setOrigin(.5).setDepth(25).setAlpha(0);
@@ -361,12 +361,24 @@ class GameScene extends Phaser.Scene{
     });
   }
   landingPulse(){
-    if(!this.active || !this.active.list.length)return;
+    if(!this.piece||!this.blockLayer||!this.blockLayer.list.length)return;
+    const pts=new Set();
+    for(let y=0;y<this.piece.shape.length;y++)for(let x=0;x<this.piece.shape[y].length;x++){
+      if(!this.piece.shape[y][x])continue;
+      const by=this.piece.y+y,bx=this.piece.x+x;
+      if(by>=0)pts.add((bx*100)+by);
+    }
+    const targets=this.blockLayer.list.filter(sp=>{
+      const bx=Math.round((sp.x-this.bx-CFG.cell/2)/CFG.cell);
+      const by=Math.round((sp.y-this.by-CFG.cell/2)/CFG.cell);
+      return pts.has((bx*100)+by);
+    });
+    if(!targets.length)return;
     this.tweens.add({
-      targets:this.active.list,
+      targets,
       scaleX:{from:1.10,to:1},
-      scaleY:{from:.84,to:1},
-      duration:95,
+      scaleY:{from:.82,to:1},
+      duration:105,
       ease:'Back.easeOut'
     });
   }
