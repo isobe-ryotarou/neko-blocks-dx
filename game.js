@@ -33,7 +33,32 @@ const SHAPES=[
   [[0,0,1],[1,1,1]]      // J
 ];
 const WEIGHTS=[13.45,13.45,13.45,13.45,19.30,13.45,13.45];
-const LEVEL_BACKGROUNDS=[0xeef3f7,0xeaf3f0,0xf2efe8,0xefeaf4,0xe8f0f6,0xf4ece8,0xe9f2ee,0xeeeaf5];
+const STAGE_BACKGROUNDS=[
+  0xf1f5f7, // 1
+  0xdde6ea, // 2
+  0xc9d4da, // 3
+  0xb4c1c8, // 4
+  0x99a9b1, // 5
+  0x7f9099, // 6
+  0x65747d, // 7
+  0x48545c, // 8
+  0x293239, // 9
+  0x000000  // 10
+];
+
+const STAGE_CLEAR_MESSAGES=[
+  '',
+  'すごいね！次のクリアで達人！',
+  'やるじゃん！次のクリアで天才クラス！',
+  '神レベル！',
+  'まだ行く！？次は怪物クラス！',
+  '怪物級！ここから先は別世界！',
+  '異次元！その集中力、本物だ！',
+  '伝説が見えてきた！',
+  'ここまで来るとは…！あと2面！',
+  '最終面目前！最後まで駆け抜けろ！',
+  '完全制覇！NEKO BLOCKS MASTER！'
+];
 
 const Store={
   best(){
@@ -72,13 +97,13 @@ class AudioEngine{
       this.ctx=new A();
 
       this.master=this.ctx.createGain();
-      this.master.gain.value=.9;
+      this.master.gain.value=1.0;
 
       this.music=this.ctx.createGain();
-      this.music.gain.value=.44;
+      this.music.gain.value=.62;
 
       this.sfx=this.ctx.createGain();
-      this.sfx.gain.value=.82;
+      this.sfx.gain.value=1.0;
 
       this.comp=this.ctx.createDynamicsCompressor();
       this.comp.threshold.value=-18;
@@ -391,7 +416,7 @@ class TitleScene extends Phaser.Scene{
     this.cameras.main.setBackgroundColor('#eef3f7');
 
     const {width:w,height:h}=this.scale;
-    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 3.0',{
+    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 3.1',{
       fontSize:'39px',fontStyle:'bold',color:'#17212b',stroke:'#fff',strokeThickness:3
     }).setOrigin(.5);
 
@@ -440,6 +465,8 @@ class GameScene extends Phaser.Scene{
     this.score=0;
     this.lines=0;
     this.level=1;
+    this.stage=1;
+    this.lastClearedStage=0;
     this.combo=-1;
     this.best=Store.best();
 
@@ -472,12 +499,13 @@ class GameScene extends Phaser.Scene{
     this.scoreT=this.add.text(12,12,'SCORE 0',{fontSize:'19px',fontStyle:'bold',color:'#111820'});
     this.linesT=this.add.text(12,38,'LINES 0',{fontSize:'15px',color:'#111820'});
     this.levelT=this.add.text(12,60,'LEVEL 1',{fontSize:'14px',fontStyle:'bold',color:'#55636f'});
+    this.stageT=this.add.text(this.scale.width/2,34,'STAGE 1 / 10',{fontSize:'14px',fontStyle:'bold',color:'#45525d'}).setOrigin(.5,0);
 
     this.bestT=this.add.text(this.scale.width-12,12,'BEST '+this.best,{
       fontSize:'14px',fontStyle:'bold',color:'#45525d'
     }).setOrigin(1,0);
 
-    this.add.text(this.scale.width/2,12,'v3.0',{
+    this.add.text(this.scale.width/2,12,'v3.1',{
       fontSize:'12px',fontStyle:'bold',color:'#7b8791'
     }).setOrigin(.5,0);
 
@@ -498,7 +526,7 @@ class GameScene extends Phaser.Scene{
     }).setOrigin(.5).setDepth(70).setVisible(false);
 
     this.next=this.factory.create();
-    this.applyLevelTheme();
+    this.applyStageTheme();
     this.spawn();
 
     this.bindKeyboard();
@@ -532,10 +560,21 @@ class GameScene extends Phaser.Scene{
     g.lineBetween(this.bx-6,this.by+this.bh+5,this.bx+this.bw+6,this.by+this.bh+5);
   }
 
-  applyLevelTheme(){
-    this.cameras.main.setBackgroundColor(
-      LEVEL_BACKGROUNDS[(this.level-1)%LEVEL_BACKGROUNDS.length]
-    );
+  currentStage(){
+    return Math.min(10,Math.floor(this.lines/10)+1);
+  }
+
+  applyStageTheme(){
+    this.stage=this.currentStage();
+    const bg=STAGE_BACKGROUNDS[this.stage-1];
+    this.cameras.main.setBackgroundColor(bg);
+
+    const dark=this.stage>=7;
+    this.scoreT.setColor(dark?'#ffffff':'#111820');
+    this.linesT.setColor(dark?'#ffffff':'#111820');
+    this.levelT.setColor(dark?'#e5edf2':'#55636f');
+    this.stageT.setColor(dark?'#ffe082':'#45525d');
+    this.bestT.setColor(dark?'#ffffff':'#45525d');
   }
 
   spawn(){
@@ -675,6 +714,7 @@ class GameScene extends Phaser.Scene{
           this.by+row*CFG.cell+CFG.cell/2,
           key
         ).setDepth(40);
+        if(this.currentStage()===10)sp.setTint(cell.dog?0xffd54f:0xffc928);
 
         overlays.push(sp);
 
@@ -704,8 +744,13 @@ class GameScene extends Phaser.Scene{
     this.score+=Math.round(base*(1+Math.max(0,this.combo)*.25)*this.level);
 
     const previousLevel=this.level;
+    const previousStage=this.currentStage();
     this.lines+=rows.length;
     this.level=1+Math.floor(this.lines/10);
+
+    const clearedStage=Math.min(10,Math.floor(this.lines/10));
+    const stageJustCleared=clearedStage>this.lastClearedStage;
+    if(stageJustCleared)this.lastClearedStage=clearedStage;
 
     this.updateHUD();
 
@@ -716,16 +761,98 @@ class GameScene extends Phaser.Scene{
     this.activeLayer.removeAll(true);
     this.ghostLayer.removeAll(true);
 
-    if(this.level>previousLevel){
-      this.applyLevelTheme();
-      this.levelUpFX();
-    }
+    if(this.level>previousLevel)this.levelUpFX();
+
+    this.applyStageTheme();
 
     this.time.delayedCall(230,()=>{
       this.clearing=false;
       this.locking=false;
       this.redraw();
+
+      if(stageJustCleared){
+        this.showStageClearCutin(clearedStage);
+      }
+
+      if(clearedStage>=10){
+        return;
+      }
+
       if(!this.ended)this.spawn();
+    });
+  }
+
+  showStageClearCutin(stageNumber){
+    this.paused=true;
+    AUDIO.pauseBgm();
+    const msg=STAGE_CLEAR_MESSAGES[stageNumber]||('STAGE '+stageNumber+' CLEAR!');
+    const {width:w,height:h}=this.scale;
+
+    const shade=this.add.rectangle(w/2,h/2,w,h,0x000000,.0).setDepth(90);
+    const band=this.add.rectangle(w/2,h/2,w*1.15,150,0x111820,.0).setDepth(91);
+    const title=this.add.text(w/2,h/2-30,'STAGE '+stageNumber+' CLEAR!',{
+      fontSize:'34px',fontStyle:'bold',color:stageNumber===10?'#ffd54f':'#ffffff',
+      stroke:'#000000',strokeThickness:5
+    }).setOrigin(.5).setDepth(92).setAlpha(0).setScale(.82);
+
+    const text=this.add.text(w/2,h/2+30,msg,{
+      fontSize:stageNumber===10?'22px':'19px',
+      fontStyle:'bold',color:'#ffffff',align:'center',
+      stroke:'#000000',strokeThickness:4,
+      wordWrap:{width:w*.82}
+    }).setOrigin(.5).setDepth(92).setAlpha(0);
+
+    this.tweens.add({targets:shade,alpha:.52,duration:420,ease:'Sine.easeOut'});
+    this.tweens.add({targets:band,alpha:.88,duration:520,ease:'Sine.easeOut'});
+    this.tweens.add({
+      targets:title,alpha:1,scale:1,duration:720,ease:'Cubic.easeOut'
+    });
+    this.tweens.add({
+      targets:text,alpha:1,y:text.y-6,duration:900,delay:260,ease:'Sine.easeOut'
+    });
+
+    this.time.delayedCall(stageNumber===10?3200:2500,()=>{
+      this.tweens.add({
+        targets:[title,text,band,shade],alpha:0,duration:650,ease:'Sine.easeIn',
+        onComplete:()=>{
+          title.destroy();text.destroy();band.destroy();shade.destroy();
+          if(stageNumber===10){
+            this.showMasterClear();
+          }else{
+            this.paused=false;
+            AUDIO.resumeBgm();
+          }
+        }
+      });
+    });
+  }
+
+  showMasterClear(){
+    const {width:w,height:h}=this.scale;
+    this.paused=true;
+    setControlsVisible(false);
+    AUDIO.stopBgm(true);
+
+    const shade=this.add.rectangle(w/2,h/2,w,h,0x000000,.86).setDepth(110);
+    this.add.text(w/2,h*.38,'10 STAGES COMPLETE!',{
+      fontSize:'36px',fontStyle:'bold',color:'#ffd54f',
+      stroke:'#000000',strokeThickness:6
+    }).setOrigin(.5).setDepth(111);
+
+    this.add.text(w/2,h*.50,'100 LINE CLEAR\n完全制覇！',{
+      fontSize:'24px',fontStyle:'bold',color:'#ffffff',
+      align:'center',lineSpacing:8
+    }).setOrigin(.5).setDepth(111);
+
+    const retry=this.add.rectangle(w/2,h*.66,200,54,0xffd54f).setDepth(111).setInteractive();
+    this.add.text(w/2,h*.66,'PLAY AGAIN',{
+      fontSize:'18px',fontStyle:'bold',color:'#111820'
+    }).setOrigin(.5).setDepth(112);
+
+    retry.on('pointerdown',()=>{
+      setControlsVisible(true);
+      AUDIO.startBgm();
+      this.scene.restart();
     });
   }
 
@@ -896,11 +1023,16 @@ class GameScene extends Phaser.Scene{
 
   makeSprite(cell,x,y,alpha=1){
     const key=cell.dog?'dog':'cat'+cell.idx;
-    return this.add.image(
+    const sp=this.add.image(
       this.bx+x*CFG.cell+CFG.cell/2,
       this.by+y*CFG.cell+CFG.cell/2,
       key
     ).setAlpha(alpha);
+
+    if(this.currentStage()===10){
+      sp.setTint(cell.dog?0xffd54f:0xffc928);
+    }
+    return sp;
   }
 
   redraw(){
@@ -964,6 +1096,7 @@ class GameScene extends Phaser.Scene{
     this.scoreT.setText('SCORE '+this.score);
     this.linesT.setText('LINES '+this.lines);
     this.levelT.setText('LEVEL '+this.level);
+    this.stageT.setText('STAGE '+this.currentStage()+' / 10');
 
     if(this.score>this.best){
       this.best=this.score;
