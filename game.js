@@ -48,16 +48,7 @@ const STAGE_BACKGROUNDS=[
 
 const STAGE_CLEAR_MESSAGES=[
   '',
-  'すごいね！次のクリアで達人！',
-  'やるじゃん！次のクリアで天才クラス！',
-  '神レベル！',
-  'まだ行く！？次は怪物クラス！',
-  '怪物級！ここから先は別世界！',
-  '異次元！その集中力、本物だ！',
-  '伝説が見えてきた！',
-  'ここまで来るとは…！あと2面！',
-  '最終面目前！最後まで駆け抜けろ！',
-  '完全制覇！NEKO BLOCKS MASTER！'
+  '達人','天才','神域','怪物','無双','伝説','覚醒','極限','王者','制覇'
 ];
 
 
@@ -113,18 +104,18 @@ class AudioEngine{
       this.ctx=new A();
 
       this.master=this.ctx.createGain();
-      this.master.gain.value=1.0;
+      this.master.gain.value=1.12;
 
       this.music=this.ctx.createGain();
-      this.music.gain.value=.62;
+      this.music.gain.value=.82;
 
       this.sfx=this.ctx.createGain();
-      this.sfx.gain.value=1.0;
+      this.sfx.gain.value=1.12;
 
       this.comp=this.ctx.createDynamicsCompressor();
-      this.comp.threshold.value=-18;
+      this.comp.threshold.value=-22;
       this.comp.knee.value=16;
-      this.comp.ratio.value=3.2;
+      this.comp.ratio.value=4.0;
       this.comp.attack.value=.008;
       this.comp.release.value=.22;
 
@@ -253,8 +244,10 @@ class AudioEngine{
 
     const theme=STAGE_THEMES[this.musicStage]||STAGE_THEMES[1];
     const lead=theme.lead;
-    const interval=Math.max(88,Math.round(60000/theme.bpm/4));
-    const roots=[130.81,146.83,110.00,123.47];
+    const interval=Math.max(82,Math.round(60000/theme.bpm/4));
+    const roots=[130.81,110.00,123.47,98.00];
+    const thirds=[164.81,138.59,146.83,123.47];
+    const fifths=[196.00,164.81,185.00,146.83];
 
     const tick=()=>{
       if(!this.wantBgm)return;
@@ -262,17 +255,28 @@ class AudioEngine{
 
       const i=this.bgmStep%lead.length;
       const sub=this.bgmStep%16;
+      const bar=(this.bgmStep/16|0)%4;
       const note=lead[i];
 
-      if(sub%2===0)this.tone(note,.10,0,.0045,'triangle','music',1,.08);
-      if(sub%4===0)this.tone(note/2,.14,.008,.0022,'sine','music',1,.05);
+      // Main melody made intentionally dominant and doubled.
+      this.tone(note,.12,0,.0062,'triangle','music',1,.10);
+      if(sub%2===0)this.tone(note*2,.08,.008,.0019,'sine','music',1,.07);
 
-      if(sub===0||sub===8)this.popKick(0,.018);
-      if(sub===4||sub===12)this.popKick(0,.012);
-      if(sub%2===1)this.popHat(0,.0032);
-      if(sub===2||sub===6||sub===10||sub===14)this.popHat(0,.0065);
+      if(sub===0||sub===4||sub===8||sub===12){
+        this.tone(roots[bar]*2,.18,0,.0035,'triangle','music',1,.07);
+        this.tone(thirds[bar]*2,.18,.006,.0027,'sine','music',1,.06);
+        this.tone(fifths[bar]*2,.18,.012,.0025,'sine','music',1,.06);
+      }
 
-      if(sub===0)this.tone(roots[(this.bgmStep/16|0)%roots.length],.34,0,.0038,'triangle','music',1,.08);
+      if(sub===0||sub===8){
+        this.tone(roots[bar],.34,0,.0062,'triangle','music',1,.08);
+        this.popKick(0,.025);
+      }else if(sub===4||sub===12){
+        this.popKick(0,.018);
+      }
+
+      if(sub%2===1)this.popHat(0,.0043);
+      if(sub===2||sub===6||sub===10||sub===14)this.popHat(0,.0088);
 
       this.bgmStep++;
     };
@@ -439,7 +443,7 @@ class TitleScene extends Phaser.Scene{
     this.cameras.main.setBackgroundColor('#eef3f7');
 
     const {width:w,height:h}=this.scale;
-    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 3.2',{
+    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 3.3',{
       fontSize:'39px',fontStyle:'bold',color:'#17212b',stroke:'#fff',strokeThickness:3
     }).setOrigin(.5);
 
@@ -528,7 +532,7 @@ class GameScene extends Phaser.Scene{
       fontSize:'14px',fontStyle:'bold',color:'#45525d'
     }).setOrigin(1,0);
 
-    this.add.text(this.scale.width/2,12,'v3.2',{
+    this.add.text(this.scale.width/2,12,'v3.3',{
       fontSize:'12px',fontStyle:'bold',color:'#7b8791'
     }).setOrigin(.5,0);
 
@@ -809,65 +813,51 @@ class GameScene extends Phaser.Scene{
   showStageClearCutin(stageNumber){
     this.paused=true;
 
-    const msg=STAGE_CLEAR_MESSAGES[stageNumber]||('STAGE '+stageNumber+' CLEAR!');
+    const msg=STAGE_CLEAR_MESSAGES[stageNumber]||'制覇';
     const {width:w,height:h}=this.scale;
 
     const shade=this.add.rectangle(w/2,h/2,w,h,0x000000,.0).setDepth(90);
-    const band=this.add.rectangle(w/2,h/2,w*1.4,180,0x0b1015,.0).setDepth(91);
-
-    const stageLabel=this.add.text(w/2,h/2-72,'STAGE '+stageNumber+' CLEAR!',{
-      fontFamily:'Arial, "Noto Sans JP", sans-serif',
-      fontSize:'24px',fontStyle:'bold',
-      color:stageNumber===10?'#ffd54f':'#ffffff',
-      stroke:'#000000',strokeThickness:4
-    }).setOrigin(.5).setDepth(92).setAlpha(0);
-
-    const text=this.add.text(0,h/2+8,msg,{
+    const text=this.add.text(0,0,msg,{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:'76px',
+      fontSize:'150px',
       fontStyle:'bold',
       color:stageNumber===10?'#ffd54f':'#ffffff',
       stroke:'#000000',
-      strokeThickness:8,
-      padding:{left:20,right:20,top:12,bottom:12}
-    }).setOrigin(.5).setDepth(92).setAlpha(0);
+      strokeThickness:12,
+      shadow:{offsetX:10,offsetY:10,color:'#000000',blur:8,fill:true},
+      padding:{left:24,right:24,top:18,bottom:18}
+    }).setOrigin(.5).setDepth(92).setAlpha(0).setAngle(-12);
 
-    this.tweens.add({targets:shade,alpha:.48,duration:350,ease:'Sine.easeOut'});
-    this.tweens.add({targets:band,alpha:.91,duration:420,ease:'Sine.easeOut'});
-    this.tweens.add({targets:stageLabel,alpha:1,duration:430,ease:'Sine.easeOut'});
+    const tail=this.add.rectangle(
+      w+80,h+80,300,20,
+      stageNumber===10?0xffd54f:0xffffff,.0
+    ).setDepth(91).setAngle(-32);
 
-    this.time.delayedCall(80,()=>{
-      const startX=w+text.width/2+30;
-      const endX=-text.width/2-30;
-      const distance=startX-endX;
-      const speed=95; // px/sec: 日本語を読める程度の速度
-      const duration=Math.max(5200,Math.min(11500,distance/speed*1000));
+    this.tweens.add({targets:shade,alpha:.30,duration:120,ease:'Linear'});
 
-      text.setX(startX).setAlpha(1);
+    const startX=w+text.width*.6;
+    const startY=h+text.height*.35;
+    const endX=-text.width*.65;
+    const endY=-text.height*.45;
 
+    text.setPosition(startX,startY).setAlpha(1);
+    tail.setPosition(startX+120,startY+80).setAlpha(.46);
+
+    this.tweens.add({
+      targets:text,x:endX,y:endY,duration:2000,ease:'Linear'
+    });
+    this.tweens.add({
+      targets:tail,x:endX+150,y:endY+110,alpha:0,scaleX:2.4,
+      duration:2000,ease:'Linear'
+    });
+
+    this.time.delayedCall(2000,()=>{
       this.tweens.add({
-        targets:text,
-        x:endX,
-        duration,
-        ease:'Linear',
+        targets:shade,alpha:0,duration:140,
         onComplete:()=>{
-          this.tweens.add({
-            targets:[stageLabel,band,shade],
-            alpha:0,
-            duration:520,
-            onComplete:()=>{
-              text.destroy();
-              stageLabel.destroy();
-              band.destroy();
-              shade.destroy();
-
-              if(stageNumber===10){
-                this.showMasterClear();
-              }else{
-                this.paused=false;
-              }
-            }
-          });
+          text.destroy();tail.destroy();shade.destroy();
+          if(stageNumber===10)this.showMasterClear();
+          else this.paused=false;
         }
       });
     });
