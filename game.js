@@ -186,14 +186,52 @@ const REAL_BGM={
   1:{
     title:'歓喜の歌',
     url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Ode_to_Joy.ogg',
-    rate:1.18,
-    volume:.92
+    rate:1.18, volume:.96
   },
   2:{
     title:'アイネ・クライネ・ナハトムジーク 第1楽章',
     url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Mozart_K525_Serenade_in_G_Major_1_-_Allegro.ogg',
-    rate:1.18,
-    volume:.92
+    rate:1.18, volume:.96
+  },
+  3:{
+    title:'トルコ行進曲',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Rondo_Alla_Turka.ogg',
+    rate:1.20, volume:.98
+  },
+  4:{
+    title:'カンカン',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Offenbach_-_Orpheus_in_the_Underworld_-_Overture,_Can_Can_section.ogg',
+    rate:1.20, volume:.98
+  },
+  5:{
+    title:'ウィリアム・テル序曲',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/William_Tell2.ogg',
+    rate:1.22, volume:.98
+  },
+  6:{
+    title:'ハンガリー舞曲 第5番',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Brahms_nikisch_hd5.ogg',
+    rate:1.20, volume:.98
+  },
+  7:{
+    title:'熊蜂の飛行',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Rimsky-Korsakov_-_flight_of_the_bumblebee.oga',
+    rate:1.22, volume:.98
+  },
+  8:{
+    title:'山の魔王の宮殿にて',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Musopen_-_In_the_Hall_Of_The_Mountain_King.ogg',
+    rate:1.22, volume:.98
+  },
+  9:{
+    title:'運命 第1楽章',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Ludwig_van_Beethoven_-_symphony_no._5_in_c_minor,_op._67_-_i._allegro_con_brio.ogg',
+    rate:1.20, volume:.98
+  },
+  10:{
+    title:'熊蜂の飛行 - FINAL RUSH',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Rimsky-Korsakov_-_flight_of_the_bumblebee.oga',
+    rate:1.32, volume:1.0
   }
 };
 
@@ -391,7 +429,7 @@ class AudioEngine{
       return;
     }
 
-    // Prototype: from stage 3 onward, keep the existing synth engine for now.
+    // Fallback synth engine, normally unused because all 10 stages have real audio.
     if(this.bgmTimer)return;
     this.ensure();
     if(!this.ctx)return;
@@ -412,7 +450,8 @@ class AudioEngine{
 
     if(this.realAudio){
       this.realAudio.pause();
-      this.realAudio.src='';
+      this.realAudio.removeAttribute('src');
+      this.realAudio.load();
       this.realAudio=null;
     }
 
@@ -424,9 +463,15 @@ class AudioEngine{
     a.preload='auto';
     a.volume=cfg.volume;
     a.playbackRate=cfg.rate;
+    a.crossOrigin='anonymous';
+
     if('preservesPitch' in a)a.preservesPitch=true;
     if('webkitPreservesPitch' in a)a.webkitPreservesPitch=true;
     if('mozPreservesPitch' in a)a.mozPreservesPitch=true;
+
+    a.addEventListener('canplay',()=>{
+      if(this.wantBgm && this.musicStage===stage)a.play().catch(()=>{});
+    },{once:true});
 
     a.addEventListener('error',()=>{
       console.warn('Real BGM failed to load:',cfg.title);
@@ -676,7 +721,7 @@ class TitleScene extends Phaser.Scene{
     this.cameras.main.setBackgroundColor('#eef3f7');
 
     const {width:w,height:h}=this.scale;
-    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 4.0',{
+    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 4.1',{
       fontSize:'39px',fontStyle:'bold',color:'#17212b',stroke:'#fff',strokeThickness:3
     }).setOrigin(.5);
 
@@ -766,7 +811,7 @@ class GameScene extends Phaser.Scene{
       fontSize:'14px',fontStyle:'bold',color:'#45525d'
     }).setOrigin(1,0);
 
-    this.add.text(this.scale.width/2,12,'v4.0',{
+    this.add.text(this.scale.width/2,12,'v4.1',{
       fontSize:'12px',fontStyle:'bold',color:'#7b8791'
     }).setOrigin(.5,0);
 
@@ -1471,7 +1516,7 @@ class GameScene extends Phaser.Scene{
     this.stageT.setText('STAGE '+this.currentStage()+' / 10');
     const stageNo=this.currentStage();
     const themeName=REAL_BGM[stageNo]?.title || (STAGE_MUSIC[stageNo]||STAGE_MUSIC[1]).name;
-    this.musicT.setText('BGM: '+themeName+(REAL_BGM[stageNo]?' 〈REAL AUDIO 1.18×〉':''));
+    this.musicT.setText('BGM: '+themeName+' 〈REAL AUDIO〉');
 
     if(this.score>this.best){
       this.best=this.score;

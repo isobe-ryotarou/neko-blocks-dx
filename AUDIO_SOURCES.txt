@@ -1,18 +1,62 @@
-NEKO BLOCKS DX 4.0 - Audio Prototype
+NEKO BLOCKS DX 4.1 - Audio Sources
 
-This prototype uses externally streamed audio for Stage 1 and Stage 2.
+The game streams audio from Wikimedia Commons. The audio files are not bundled in this ZIP.
+Playback is accelerated modestly while preserving pitch when the browser supports it.
 
-Stage 1:
-- Beethoven: Ode to Joy
-- Wikimedia Commons: File:Ode to Joy.ogg
-- Public Domain Mark / free of known copyright restrictions
-- https://commons.wikimedia.org/wiki/File:Ode_to_Joy.ogg
+STAGE 1 - Beethoven: Ode to Joy
+Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:Ode_to_Joy.ogg
 
-Stage 2:
-- Mozart: Eine kleine Nachtmusik, K.525, 1st movement
-- Wikimedia Commons: File:Mozart K525 Serenade in G Major 1 - Allegro.ogg
-- Wikimedia Commons describes the source as a public-domain work from Musopen
-- https://commons.wikimedia.org/wiki/File:Mozart_K525_Serenade_in_G_Major_1_-_Allegro.ogg
+STAGE 2 - Mozart: Eine kleine Nachtmusik, K.525, 1st movement
+Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:Mozart_K525_Serenade_in_G_Major_1_-_Allegro.ogg
 
-The files are not bundled in this ZIP. They are streamed from Wikimedia Commons.
-Playback rate is set to 1.18x for game use.
+STAGE 3 - Mozart: Rondo Alla Turca / Turkish March
+Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:Rondo_Alla_Turka.ogg
+Commons identifies this file as free of known copyright restrictions / Public Domain Mark.
+
+STAGE 4 - Offenbach: Orpheus in the Underworld - Can Can section
+Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:Offenbach_-_Orpheus_in_the_Underworld_-_Overture,_Can_Can_section.ogg
+Commons states that this recording was explicitly dedicated to the public domain.
+
+STAGE 5 - Rossini: William Tell Overture (second half)
+Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:William_Tell2.ogg
+Commons lists the recording as Public Domain.
+
+STAGE 6 - Brahms: Hungarian Dance No.5
+Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:Brahms_nikisch_hd5.ogg
+Historic 1906 performance; Commons marks the work public domain.
+
+STAGE 7 - Rimsky-Korsakov: Flight of the Bumblebee
+Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:Rimsky-Korsakov_-_flight_of_the_bumblebee.oga
+Performed by the U.S. Army Band; Commons identifies the recording as public domain.
+
+STAGE 8 - Grieg: In the Hall of the Mountain King
+Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:Musopen_-_In_the_Hall_Of_The_Mountain_King.ogg
+Commons states Musopen released this recording into the public domain.
+
+STAGE 9 - Beethoven: Symphony No.5, 1st movement
+Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_symphony_no._5_in_c_minor,_op._67_-_i._allegro_con_brio.ogg
+Commons identifies the music and recording as public domain / freely reusable, with attribution information on the page.
+
+STAGE 10 - Rimsky-Korsakov: Flight of the Bumblebee - FINAL RUSH
+Same public-domain U.S. Army Band recording as Stage 7, played faster.
+
+Playback rates:
+1: 1.18x
+2: 1.18x
+3: 1.20x
+4: 1.20x
+5: 1.22x
+6: 1.20x
+7: 1.22x
+8: 1.22x
+9: 1.20x
+10: 1.32x
