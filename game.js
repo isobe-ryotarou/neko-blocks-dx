@@ -60,6 +60,21 @@ const STAGE_CLEAR_MESSAGES=[
   '完全制覇！NEKO BLOCKS MASTER！'
 ];
 
+
+const STAGE_THEMES=[
+  null,
+  {name:'Ode to Joy',bpm:132,lead:[329.63,329.63,349.23,392.00,392.00,349.23,329.63,293.66,261.63,261.63,293.66,329.63,329.63,293.66,293.66]},
+  {name:'Eine kleine Nachtmusik',bpm:136,lead:[392.00,587.33,783.99,587.33,783.99,587.33,783.99,493.88,587.33,523.25,440.00,523.25,440.00,392.00]},
+  {name:'Beethoven Symphony No.5',bpm:138,lead:[392.00,392.00,392.00,311.13,349.23,349.23,349.23,293.66,392.00,392.00,392.00,311.13]},
+  {name:'Canon in D',bpm:140,lead:[587.33,440.00,493.88,369.99,392.00,293.66,392.00,440.00,587.33,659.25,739.99,659.25,587.33,493.88,554.37,587.33]},
+  {name:'Can-Can',bpm:144,lead:[523.25,587.33,659.25,698.46,783.99,783.99,698.46,659.25,587.33,523.25,523.25,587.33,659.25,698.46,783.99]},
+  {name:'William Tell Overture',bpm:146,lead:[659.25,659.25,659.25,523.25,659.25,783.99,659.25,523.25,659.25,783.99,880.00,783.99,659.25]},
+  {name:'Turkish March',bpm:148,lead:[493.88,523.25,587.33,659.25,698.46,659.25,587.33,554.37,587.33,659.25,587.33,523.25,493.88]},
+  {name:'Hungarian Dance No.5',bpm:150,lead:[587.33,698.46,783.99,698.46,659.25,587.33,554.37,587.33,659.25,698.46,659.25,587.33]},
+  {name:'In the Hall of the Mountain King',bpm:154,lead:[293.66,329.63,349.23,392.00,349.23,329.63,311.13,293.66,329.63,349.23,369.99,415.30,369.99,349.23,329.63]},
+  {name:'Flight of the Bumblebee',bpm:168,lead:[659.25,622.25,587.33,554.37,523.25,493.88,466.16,440.00,466.16,493.88,523.25,554.37,587.33,622.25,659.25,698.46]}
+];
+
 const Store={
   best(){
     try{return Math.max(0,Number(localStorage.getItem('neko_dx3_best'))||0)}
@@ -88,6 +103,7 @@ class AudioEngine{
     this.bgmTimer=null;
     this.bgmStep=0;
     this.wantBgm=false;
+    this.musicStage=1;
   }
 
   ensure(){
@@ -228,44 +244,51 @@ class AudioEngine{
     });
   }
 
-  startBgm(){
+  startBgm(stage=this.musicStage||1){
     this.wantBgm=true;
+    this.musicStage=Math.max(1,Math.min(10,stage|0));
     if(this.bgmTimer)return;
     this.ensure();
     if(!this.ctx)return;
 
-    // 約132 BPM相当の軽量ポップBGM
-    const progression=[
-      {b:146.83,c:[293.66,369.99,440.00]},
-      {b:110.00,c:[277.18,329.63,440.00]},
-      {b:123.47,c:[246.94,293.66,369.99]},
-      {b:98.00,c:[246.94,293.66,392.00]}
-    ];
-    const lead=[
-      587.33,659.25,739.99,659.25,587.33,493.88,554.37,587.33,
-      659.25,739.99,880.00,739.99,659.25,587.33,554.37,493.88
-    ];
+    const theme=STAGE_THEMES[this.musicStage]||STAGE_THEMES[1];
+    const lead=theme.lead;
+    const interval=Math.max(88,Math.round(60000/theme.bpm/4));
+    const roots=[130.81,146.83,110.00,123.47];
 
     const tick=()=>{
       if(!this.wantBgm)return;
       if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume().catch(()=>{});
-      const i=this.bgmStep%lead.length;
-      const beat=this.bgmStep%8;
-      const bar=(this.bgmStep/8|0)%progression.length;
-      const p=progression[bar];
 
-      if(beat%2===0)this.tone(lead[i],.10,0,.0037,'triangle','music',1,.08);
-      if(beat%2===0)this.tone(p.c[(beat/2)%3|0],.14,.01,.0027,'sine','music',1,.06);
-      if(beat===0||beat===4)this.popKick(0,.016);
-      if(beat===1||beat===3||beat===5||beat===7)this.popHat(0,.0033);
-      if(beat===2||beat===6)this.popHat(0,.0068);
-      if(beat===0)this.tone(p.b,.36,0,.0037,'triangle','music',1,.08);
+      const i=this.bgmStep%lead.length;
+      const sub=this.bgmStep%16;
+      const note=lead[i];
+
+      if(sub%2===0)this.tone(note,.10,0,.0045,'triangle','music',1,.08);
+      if(sub%4===0)this.tone(note/2,.14,.008,.0022,'sine','music',1,.05);
+
+      if(sub===0||sub===8)this.popKick(0,.018);
+      if(sub===4||sub===12)this.popKick(0,.012);
+      if(sub%2===1)this.popHat(0,.0032);
+      if(sub===2||sub===6||sub===10||sub===14)this.popHat(0,.0065);
+
+      if(sub===0)this.tone(roots[(this.bgmStep/16|0)%roots.length],.34,0,.0038,'triangle','music',1,.08);
 
       this.bgmStep++;
     };
 
     tick();
-    this.bgmTimer=setInterval(tick,114);
+    this.bgmTimer=setInterval(tick,interval);
+  }
+
+  setStageMusic(stage){
+    const next=Math.max(1,Math.min(10,stage|0));
+    if(this.musicStage===next&&this.bgmTimer)return;
+    const shouldResume=this.wantBgm;
+    this.stopBgm(false);
+    this.musicStage=next;
+    this.bgmStep=0;
+    if(shouldResume)this.startBgm(next);
   }
 
   stopBgm(permanent=true){
@@ -416,7 +439,7 @@ class TitleScene extends Phaser.Scene{
     this.cameras.main.setBackgroundColor('#eef3f7');
 
     const {width:w,height:h}=this.scale;
-    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 3.1',{
+    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 3.2',{
       fontSize:'39px',fontStyle:'bold',color:'#17212b',stroke:'#fff',strokeThickness:3
     }).setOrigin(.5);
 
@@ -447,7 +470,7 @@ class TitleScene extends Phaser.Scene{
 
     start.on('pointerdown',()=>{
       AUDIO.ensure();
-      AUDIO.startBgm();
+      AUDIO.startBgm(1);
       this.scene.start('Game');
     });
   }
@@ -505,7 +528,7 @@ class GameScene extends Phaser.Scene{
       fontSize:'14px',fontStyle:'bold',color:'#45525d'
     }).setOrigin(1,0);
 
-    this.add.text(this.scale.width/2,12,'v3.1',{
+    this.add.text(this.scale.width/2,12,'v3.2',{
       fontSize:'12px',fontStyle:'bold',color:'#7b8791'
     }).setOrigin(.5,0);
 
@@ -534,7 +557,7 @@ class GameScene extends Phaser.Scene{
 
     this.events.once('shutdown',()=>this.unbindButtons());
 
-    AUDIO.startBgm();
+    AUDIO.startBgm(this.currentStage());
   }
 
   drawFrame(){
@@ -566,6 +589,7 @@ class GameScene extends Phaser.Scene{
 
   applyStageTheme(){
     this.stage=this.currentStage();
+    AUDIO.setStageMusic(this.stage);
     const bg=STAGE_BACKGROUNDS[this.stage-1];
     this.cameras.main.setBackgroundColor(bg);
 
@@ -784,44 +808,66 @@ class GameScene extends Phaser.Scene{
 
   showStageClearCutin(stageNumber){
     this.paused=true;
-    AUDIO.pauseBgm();
+
     const msg=STAGE_CLEAR_MESSAGES[stageNumber]||('STAGE '+stageNumber+' CLEAR!');
     const {width:w,height:h}=this.scale;
 
     const shade=this.add.rectangle(w/2,h/2,w,h,0x000000,.0).setDepth(90);
-    const band=this.add.rectangle(w/2,h/2,w*1.15,150,0x111820,.0).setDepth(91);
-    const title=this.add.text(w/2,h/2-30,'STAGE '+stageNumber+' CLEAR!',{
-      fontSize:'34px',fontStyle:'bold',color:stageNumber===10?'#ffd54f':'#ffffff',
-      stroke:'#000000',strokeThickness:5
-    }).setOrigin(.5).setDepth(92).setAlpha(0).setScale(.82);
+    const band=this.add.rectangle(w/2,h/2,w*1.4,180,0x0b1015,.0).setDepth(91);
 
-    const text=this.add.text(w/2,h/2+30,msg,{
-      fontSize:stageNumber===10?'22px':'19px',
-      fontStyle:'bold',color:'#ffffff',align:'center',
-      stroke:'#000000',strokeThickness:4,
-      wordWrap:{width:w*.82}
+    const stageLabel=this.add.text(w/2,h/2-72,'STAGE '+stageNumber+' CLEAR!',{
+      fontFamily:'Arial, "Noto Sans JP", sans-serif',
+      fontSize:'24px',fontStyle:'bold',
+      color:stageNumber===10?'#ffd54f':'#ffffff',
+      stroke:'#000000',strokeThickness:4
     }).setOrigin(.5).setDepth(92).setAlpha(0);
 
-    this.tweens.add({targets:shade,alpha:.52,duration:420,ease:'Sine.easeOut'});
-    this.tweens.add({targets:band,alpha:.88,duration:520,ease:'Sine.easeOut'});
-    this.tweens.add({
-      targets:title,alpha:1,scale:1,duration:720,ease:'Cubic.easeOut'
-    });
-    this.tweens.add({
-      targets:text,alpha:1,y:text.y-6,duration:900,delay:260,ease:'Sine.easeOut'
-    });
+    const text=this.add.text(0,h/2+8,msg,{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:'76px',
+      fontStyle:'bold',
+      color:stageNumber===10?'#ffd54f':'#ffffff',
+      stroke:'#000000',
+      strokeThickness:8,
+      padding:{left:20,right:20,top:12,bottom:12}
+    }).setOrigin(.5).setDepth(92).setAlpha(0);
 
-    this.time.delayedCall(stageNumber===10?3200:2500,()=>{
+    this.tweens.add({targets:shade,alpha:.48,duration:350,ease:'Sine.easeOut'});
+    this.tweens.add({targets:band,alpha:.91,duration:420,ease:'Sine.easeOut'});
+    this.tweens.add({targets:stageLabel,alpha:1,duration:430,ease:'Sine.easeOut'});
+
+    this.time.delayedCall(80,()=>{
+      const startX=w+text.width/2+30;
+      const endX=-text.width/2-30;
+      const distance=startX-endX;
+      const speed=95; // px/sec: 日本語を読める程度の速度
+      const duration=Math.max(5200,Math.min(11500,distance/speed*1000));
+
+      text.setX(startX).setAlpha(1);
+
       this.tweens.add({
-        targets:[title,text,band,shade],alpha:0,duration:650,ease:'Sine.easeIn',
+        targets:text,
+        x:endX,
+        duration,
+        ease:'Linear',
         onComplete:()=>{
-          title.destroy();text.destroy();band.destroy();shade.destroy();
-          if(stageNumber===10){
-            this.showMasterClear();
-          }else{
-            this.paused=false;
-            AUDIO.resumeBgm();
-          }
+          this.tweens.add({
+            targets:[stageLabel,band,shade],
+            alpha:0,
+            duration:520,
+            onComplete:()=>{
+              text.destroy();
+              stageLabel.destroy();
+              band.destroy();
+              shade.destroy();
+
+              if(stageNumber===10){
+                this.showMasterClear();
+              }else{
+                this.paused=false;
+              }
+            }
+          });
         }
       });
     });
@@ -851,7 +897,7 @@ class GameScene extends Phaser.Scene{
 
     retry.on('pointerdown',()=>{
       setControlsVisible(true);
-      AUDIO.startBgm();
+      AUDIO.startBgm(1);
       this.scene.restart();
     });
   }
@@ -1175,7 +1221,7 @@ class GameScene extends Phaser.Scene{
 
     retry.on('pointerdown',()=>{
       setControlsVisible(true);
-      AUDIO.startBgm();
+      AUDIO.startBgm(1);
       this.scene.restart();
     });
   }

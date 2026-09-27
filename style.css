@@ -16,12 +16,12 @@ body{
 #controls{position:fixed;inset:0;z-index:60;pointer-events:none;display:none}
 .ctrl{
   position:absolute;
-  width:76px;height:76px;
-  border-radius:22px;
+  width:58px;height:94px;
+  border-radius:18px;
   border:1px solid rgba(20,30,40,.32);
   background:rgba(255,255,255,.34);
   color:#0a0f14;
-  font-size:28px;
+  font-size:24px;
   font-weight:900;
   display:grid;place-items:center;
   box-shadow:0 10px 26px rgba(0,0,0,.10), inset 0 1px rgba(255,255,255,.9);
@@ -38,15 +38,14 @@ body{
   background:rgba(255,255,255,.74);
   box-shadow:0 3px 10px rgba(0,0,0,.18), inset 0 1px rgba(255,255,255,.96);
 }
-.ctrl.wide{width:104px;font-size:15px;letter-spacing:.5px}
-#left{left:3vw;top:47%}
-#right{right:3vw;top:47%}
-#rotate{left:3vw;top:59%}
-#down{right:3vw;top:59%}
-#drop{left:2.5vw;top:72%}
-#pause{right:3vw;top:72%;font-size:23px}
+.ctrl.wide{width:58px;height:94px;font-size:12px;letter-spacing:.2px;writing-mode:vertical-rl;text-orientation:mixed}
+#left{left:2vw;top:43%}
+#rotate{left:2vw;top:59%}
+#drop{right:2vw;top:27%}
+#right{right:2vw;top:43%}
+#down{right:2vw;top:59%}
+#pause{right:2vw;top:75%;font-size:20px}
 @media(min-width:850px){
-  #left{left:8%}#right{right:8%}
-  #rotate{left:8%}#down{right:8%}
-  #drop{left:7%}#pause{right:8%}
+  #left{left:7%}#rotate{left:7%}
+  #drop{right:7%}#right{right:7%}#down{right:7%}#pause{right:7%}
 }
