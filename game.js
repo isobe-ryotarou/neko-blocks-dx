@@ -58,7 +58,7 @@ const STAGE_CLEAR_MESSAGES=[
 const STAGE_MUSIC=[
   null,
   {
-    name:'歓喜の歌 - NEKO RUSH MIX', bpm:188,
+    name:'歓喜の歌 - NEKO RUSH MIX', bpm:156,
     score:[
       [329.63,.5],[329.63,.5],[349.23,.5],[392.00,.5],
       [392.00,.5],[349.23,.5],[329.63,.5],[293.66,.5],
@@ -71,7 +71,7 @@ const STAGE_MUSIC=[
     ]
   },
   {
-    name:'アイネ・クライネ・ナハトムジーク', bpm:204,
+    name:'アイネ・クライネ・ナハトムジーク', bpm:160,
     score:[
       [392.00,.25],[0,.12],[392.00,.13],[587.33,.38],[392.00,.12],
       [783.99,.5],[587.33,.25],[783.99,.25],[587.33,.25],[783.99,.25],
@@ -80,7 +80,7 @@ const STAGE_MUSIC=[
     ]
   },
   {
-    name:'トルコ行進曲', bpm:212,
+    name:'トルコ行進曲', bpm:164,
     score:[
       [493.88,.25],[523.25,.25],[587.33,.25],[659.25,.25],
       [698.46,.25],[659.25,.25],[587.33,.25],[554.37,.25],
@@ -91,7 +91,7 @@ const STAGE_MUSIC=[
     ]
   },
   {
-    name:'カンカン', bpm:220,
+    name:'カンカン', bpm:168,
     score:[
       [523.25,.25],[587.33,.25],[659.25,.25],[698.46,.25],
       [783.99,.25],[783.99,.25],[698.46,.25],[659.25,.25],
@@ -101,7 +101,7 @@ const STAGE_MUSIC=[
     ]
   },
   {
-    name:'ウィリアム・テル序曲', bpm:226,
+    name:'ウィリアム・テル序曲', bpm:172,
     score:[
       [659.25,.20],[659.25,.20],[659.25,.20],[523.25,.20],
       [659.25,.20],[783.99,.20],[659.25,.20],[523.25,.20],
@@ -111,7 +111,7 @@ const STAGE_MUSIC=[
     ]
   },
   {
-    name:'ハンガリー舞曲第5番', bpm:232,
+    name:'ハンガリー舞曲第5番', bpm:168,
     score:[
       [587.33,.25],[698.46,.25],[783.99,.25],[698.46,.25],
       [659.25,.25],[587.33,.25],[554.37,.25],[587.33,.25],
@@ -121,7 +121,7 @@ const STAGE_MUSIC=[
     ]
   },
   {
-    name:'熊蜂の飛行', bpm:242,
+    name:'熊蜂の飛行', bpm:176,
     score:[
       [659.25,.125],[622.25,.125],[587.33,.125],[554.37,.125],
       [523.25,.125],[493.88,.125],[466.16,.125],[440.00,.125],
@@ -132,7 +132,7 @@ const STAGE_MUSIC=[
     ]
   },
   {
-    name:'山の魔王の宮殿にて', bpm:236,
+    name:'山の魔王の宮殿にて', bpm:174,
     score:[
       [293.66,.25],[329.63,.25],[349.23,.25],[392.00,.25],
       [349.23,.25],[329.63,.25],[311.13,.25],[293.66,.25],
@@ -142,7 +142,7 @@ const STAGE_MUSIC=[
     ]
   },
   {
-    name:'運命', bpm:244,
+    name:'運命', bpm:166,
     score:[
       [392.00,.18],[392.00,.18],[392.00,.18],[311.13,.72],
       [0,.10],
@@ -153,7 +153,7 @@ const STAGE_MUSIC=[
     ]
   },
   {
-    name:'熊蜂の飛行 - FINAL RUSH', bpm:268,
+    name:'熊蜂の飛行 - FINAL RUSH', bpm:188,
     score:[
       [783.99,.10],[739.99,.10],[698.46,.10],[659.25,.10],
       [622.25,.10],[587.33,.10],[554.37,.10],[523.25,.10],
@@ -366,7 +366,7 @@ class AudioEngine{
 
     const theme=STAGE_MUSIC[this.musicStage]||STAGE_MUSIC[1];
     const score=theme.score;
-    const beatMs=(60000/theme.bpm)*0.50;
+    const beatMs=(60000/theme.bpm)*0.85;
     const [freq,beats]=score[this.odeIndex%score.length];
     const noteMs=beatMs*beats;
 
@@ -381,27 +381,27 @@ class AudioEngine{
 
     if(freq>0){
       // melody is deliberately loud and doubled
-      this.tone(freq,Math.max(.045,noteMs/1000*.82),0,.0092*energy,'triangle','music',1,.12);
-      this.tone(freq*2,Math.max(.035,noteMs/1000*.68),.008,.0028*energy,'sine','music',1,.08);
+      this.tone(freq,Math.max(.080,noteMs/1000*.92),0,.0135*energy,'triangle','music',1,.13);
+      this.tone(freq*2,Math.max(.055,noteMs/1000*.76),.010,.0032*energy,'sine','music',1,.08);
     }
 
     // chord/bass pulse every 4 score events
     if(idx%4===0){
-      this.tone(roots[bar],Math.max(.12,noteMs/1000*.9),0,.0070*energy,'triangle','music',1,.10);
-      this.tone(thirds[bar]*2,.16,.006,.0030*energy,'sine','music',1,.07);
-      this.tone(fifths[bar]*2,.16,.012,.0028*energy,'sine','music',1,.07);
-      this.popKick(0,.027*energy);
+      this.tone(roots[bar],Math.max(.12,noteMs/1000*.9),0,.0048*energy,'triangle','music',1,.10);
+      this.tone(thirds[bar]*2,.16,.006,.0020*energy,'sine','music',1,.07);
+      this.tone(fifths[bar]*2,.16,.012,.0019*energy,'sine','music',1,.07);
+      this.popKick(0,.019*energy);
     }else if(idx%2===0){
-      this.popKick(0,.016*energy);
+      this.popKick(0,.011*energy);
     }
 
-    this.popHat(0,.0062*energy);
+    this.popHat(0,.0038*energy);
 
     this.odeIndex=(this.odeIndex+1)%score.length;
     this.bgmTimer=setTimeout(()=>{
       this.bgmTimer=null;
       this.playStageScoreNext();
-    },Math.max(42,noteMs));
+    },Math.max(70,noteMs));
   }
 
   setStageMusic(stage){
@@ -567,7 +567,7 @@ class TitleScene extends Phaser.Scene{
     this.cameras.main.setBackgroundColor('#eef3f7');
 
     const {width:w,height:h}=this.scale;
-    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 3.6',{
+    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 3.7',{
       fontSize:'39px',fontStyle:'bold',color:'#17212b',stroke:'#fff',strokeThickness:3
     }).setOrigin(.5);
 
@@ -657,7 +657,7 @@ class GameScene extends Phaser.Scene{
       fontSize:'14px',fontStyle:'bold',color:'#45525d'
     }).setOrigin(1,0);
 
-    this.add.text(this.scale.width/2,12,'v3.6',{
+    this.add.text(this.scale.width/2,12,'v3.7',{
       fontSize:'12px',fontStyle:'bold',color:'#7b8791'
     }).setOrigin(.5,0);
 
@@ -1361,7 +1361,7 @@ class GameScene extends Phaser.Scene{
     this.levelT.setText('LEVEL '+this.level);
     this.stageT.setText('STAGE '+this.currentStage()+' / 10');
     const themeName=(STAGE_MUSIC[this.currentStage()]||STAGE_MUSIC[1]).name;
-    this.musicT.setText('BGM: '+themeName);
+    this.musicT.setText('BGM: '+themeName+' 〈MELODY MIX〉');
 
     if(this.score>this.best){
       this.best=this.score;
