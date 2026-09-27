@@ -52,6 +52,31 @@ const STAGE_CLEAR_MESSAGES=[
 ];
 
 
+
+// Stage 1: dedicated Ode to Joy arrangement.
+// Each item is [frequency, beats]. 0 frequency means a rest.
+const ODE_TO_JOY=[
+  [329.63,1],[329.63,1],[349.23,1],[392.00,1],
+  [392.00,1],[349.23,1],[329.63,1],[293.66,1],
+  [261.63,1],[261.63,1],[293.66,1],[329.63,1],
+  [329.63,1.5],[293.66,.5],[293.66,2],
+
+  [329.63,1],[329.63,1],[349.23,1],[392.00,1],
+  [392.00,1],[349.23,1],[329.63,1],[293.66,1],
+  [261.63,1],[261.63,1],[293.66,1],[329.63,1],
+  [293.66,1.5],[261.63,.5],[261.63,2],
+
+  [293.66,1],[293.66,1],[329.63,1],[261.63,1],
+  [293.66,1],[329.63,.5],[349.23,.5],[329.63,1],[261.63,1],
+  [293.66,1],[329.63,.5],[349.23,.5],[329.63,1],[293.66,1],
+  [261.63,1],[293.66,1],[196.00,2],
+
+  [329.63,1],[329.63,1],[349.23,1],[392.00,1],
+  [392.00,1],[349.23,1],[329.63,1],[293.66,1],
+  [261.63,1],[261.63,1],[293.66,1],[329.63,1],
+  [293.66,1.5],[261.63,.5],[261.63,2]
+];
+
 const STAGE_THEMES=[
   null,
   {name:'Ode to Joy',bpm:132,lead:[329.63,329.63,349.23,392.00,392.00,349.23,329.63,293.66,261.63,261.63,293.66,329.63,329.63,293.66,293.66]},
@@ -95,6 +120,8 @@ class AudioEngine{
     this.bgmStep=0;
     this.wantBgm=false;
     this.musicStage=1;
+    this.odeIndex=0;
+    this.bgmMode='';
   }
 
   ensure(){
@@ -242,7 +269,14 @@ class AudioEngine{
     this.ensure();
     if(!this.ctx)return;
 
-    const theme=STAGE_THEMES[this.musicStage]||STAGE_THEMES[1];
+    if(this.musicStage===1){
+      this.bgmMode='ode';
+      this.playOdeNext();
+      return;
+    }
+
+    this.bgmMode='generic';
+    const theme=STAGE_THEMES[this.musicStage]||STAGE_THEMES[2];
     const lead=theme.lead;
     const interval=Math.max(82,Math.round(60000/theme.bpm/4));
     const roots=[130.81,110.00,123.47,98.00];
@@ -258,7 +292,6 @@ class AudioEngine{
       const bar=(this.bgmStep/16|0)%4;
       const note=lead[i];
 
-      // Main melody made intentionally dominant and doubled.
       this.tone(note,.12,0,.0062,'triangle','music',1,.10);
       if(sub%2===0)this.tone(note*2,.08,.008,.0019,'sine','music',1,.07);
 
@@ -285,6 +318,45 @@ class AudioEngine{
     this.bgmTimer=setInterval(tick,interval);
   }
 
+  playOdeNext(){
+    if(!this.wantBgm||this.musicStage!==1)return;
+    if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume().catch(()=>{});
+
+    const beatMs=430; // about 140 BPM, but note lengths follow the score
+    const [freq,beats]=ODE_TO_JOY[this.odeIndex];
+    const noteMs=beatMs*beats;
+
+    // Phrase-aware harmony: simple C-major-style support under Beethoven's tune.
+    const bar=Math.floor(this.odeIndex/4)%4;
+    const bass=[130.81,98.00,110.00,98.00][bar];
+    const third=[164.81,123.47,138.59,123.47][bar];
+    const fifth=[196.00,146.83,164.81,146.83][bar];
+
+    if(freq>0){
+      // Lead: stronger, longer and doubled softly one octave above.
+      this.tone(freq,Math.max(.10,noteMs/1000*.88),0,.0078,'triangle','music',1,.11);
+      this.tone(freq*2,Math.max(.08,noteMs/1000*.72),.01,.0022,'sine','music',1,.07);
+    }
+
+    // Downbeat accompaniment makes the original phrase easier to recognize.
+    if(this.odeIndex%4===0){
+      this.tone(bass,.34,0,.0060,'triangle','music',1,.08);
+      this.tone(third*2,.28,.008,.0027,'sine','music',1,.06);
+      this.tone(fifth*2,.28,.014,.0025,'sine','music',1,.06);
+      this.popKick(0,.020);
+    }else if(this.odeIndex%2===0){
+      this.popKick(0,.012);
+    }
+
+    this.popHat(0,.0034);
+
+    this.odeIndex=(this.odeIndex+1)%ODE_TO_JOY.length;
+    this.bgmTimer=setTimeout(()=>{
+      this.bgmTimer=null;
+      this.playOdeNext();
+    },noteMs);
+  }
+
   setStageMusic(stage){
     const next=Math.max(1,Math.min(10,stage|0));
     if(this.musicStage===next&&this.bgmTimer)return;
@@ -292,12 +364,17 @@ class AudioEngine{
     this.stopBgm(false);
     this.musicStage=next;
     this.bgmStep=0;
+    this.odeIndex=0;
     if(shouldResume)this.startBgm(next);
   }
 
   stopBgm(permanent=true){
     if(permanent)this.wantBgm=false;
-    if(this.bgmTimer){clearInterval(this.bgmTimer);this.bgmTimer=null}
+    if(this.bgmTimer){
+      clearInterval(this.bgmTimer);
+      clearTimeout(this.bgmTimer);
+      this.bgmTimer=null;
+    }
   }
 
   pauseBgm(){
@@ -307,7 +384,7 @@ class AudioEngine{
   resumeBgm(){
     if(!this.wantBgm)return;
     this.ensure();
-    if(!this.bgmTimer)this.startBgm();
+    if(!this.bgmTimer)this.startBgm(this.musicStage);
   }
 }
 const AUDIO=new AudioEngine();
@@ -443,7 +520,7 @@ class TitleScene extends Phaser.Scene{
     this.cameras.main.setBackgroundColor('#eef3f7');
 
     const {width:w,height:h}=this.scale;
-    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 3.3',{
+    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 3.4',{
       fontSize:'39px',fontStyle:'bold',color:'#17212b',stroke:'#fff',strokeThickness:3
     }).setOrigin(.5);
 
@@ -527,12 +604,13 @@ class GameScene extends Phaser.Scene{
     this.linesT=this.add.text(12,38,'LINES 0',{fontSize:'15px',color:'#111820'});
     this.levelT=this.add.text(12,60,'LEVEL 1',{fontSize:'14px',fontStyle:'bold',color:'#55636f'});
     this.stageT=this.add.text(this.scale.width/2,34,'STAGE 1 / 10',{fontSize:'14px',fontStyle:'bold',color:'#45525d'}).setOrigin(.5,0);
+    this.musicT=this.add.text(this.scale.width/2,54,'BGM: 歓喜の歌',{fontSize:'11px',fontStyle:'bold',color:'#71808b'}).setOrigin(.5,0);
 
     this.bestT=this.add.text(this.scale.width-12,12,'BEST '+this.best,{
       fontSize:'14px',fontStyle:'bold',color:'#45525d'
     }).setOrigin(1,0);
 
-    this.add.text(this.scale.width/2,12,'v3.3',{
+    this.add.text(this.scale.width/2,12,'v3.4',{
       fontSize:'12px',fontStyle:'bold',color:'#7b8791'
     }).setOrigin(.5,0);
 
@@ -1133,6 +1211,8 @@ class GameScene extends Phaser.Scene{
     this.linesT.setText('LINES '+this.lines);
     this.levelT.setText('LEVEL '+this.level);
     this.stageT.setText('STAGE '+this.currentStage()+' / 10');
+    const themeName=(STAGE_THEMES[this.currentStage()]||STAGE_THEMES[1]).name;
+    this.musicT.setText('BGM: '+(this.currentStage()===1?'歓喜の歌':themeName));
 
     if(this.score>this.best){
       this.best=this.score;
