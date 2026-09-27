@@ -1,0 +1,22 @@
+:root{--ui:rgba(255,255,255,.34);--ink:#111820;--edge:#17212b}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#eef3f7;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;touch-action:none}
+  #game{position:fixed;inset:0}
+  #mobileControls{position:fixed;inset:0;pointer-events:none;z-index:30;display:none}
+  .ctrl{
+    position:absolute;pointer-events:auto;width:76px;height:76px;border:1px solid rgba(18,28,36,.34);
+    border-radius:20px;background:var(--ui);color:#05090d;font-size:28px;font-weight:900;
+    display:grid;place-items:center;box-shadow:0 8px 24px rgba(20,32,42,.10),inset 0 1px rgba(255,255,255,.65);
+    backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);user-select:none;-webkit-user-select:none;
+    transition:transform .06s ease,background .06s ease,box-shadow .06s ease
+  }
+  .ctrl.pressed,.ctrl:active{transform:scale(.94);background:rgba(255,255,255,.58);box-shadow:0 4px 12px rgba(20,32,42,.15),inset 0 1px rgba(255,255,255,.8)}
+  #left{left:max(3vw,env(safe-area-inset-left));top:46%}
+  #right{right:max(3vw,env(safe-area-inset-right));top:46%}
+  #rotate{left:max(3vw,env(safe-area-inset-left));top:58%}
+  #down{right:max(3vw,env(safe-area-inset-right));top:58%}
+  #drop{left:max(2.5vw,env(safe-area-inset-left));top:70%;width:100px;font-size:15px;letter-spacing:.5px}
+  #pause{right:max(3vw,env(safe-area-inset-right));top:70%;font-size:23px}
+  @media (min-width:850px){
+    .ctrl{opacity:.72}
+    #left{left:8%}#right{right:8%}#rotate{left:8%}#down{right:8%}#drop{left:7%}#pause{right:8%}
+  }
