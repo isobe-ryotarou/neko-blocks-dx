@@ -1,67 +1,52 @@
-:root{--ui:rgba(255,255,255,.34);--ink:#111820;--edge:#17212b}
-  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#eef3f7;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;touch-action:none}
-  #game{position:fixed;inset:0}
-  #mobileControls{position:fixed;inset:0;pointer-events:none;z-index:30;display:none}
-  .ctrl{
-    position:absolute;pointer-events:auto;width:76px;height:76px;border:1px solid rgba(18,28,36,.34);
-    border-radius:20px;background:var(--ui);color:#05090d;font-size:28px;font-weight:900;
-    display:grid;place-items:center;box-shadow:0 8px 24px rgba(20,32,42,.10),inset 0 1px rgba(255,255,255,.65);
-    backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);user-select:none;-webkit-user-select:none;
-    transition:transform .06s ease,background .06s ease,box-shadow .06s ease
-  }
-  .ctrl.pressed,.ctrl:active{transform:scale(.94);background:rgba(255,255,255,.58);box-shadow:0 4px 12px rgba(20,32,42,.15),inset 0 1px rgba(255,255,255,.8)}
-  #left{left:max(3vw,env(safe-area-inset-left));top:46%}
-  #right{right:max(3vw,env(safe-area-inset-right));top:46%}
-  #rotate{left:max(3vw,env(safe-area-inset-left));top:58%}
-  #down{right:max(3vw,env(safe-area-inset-right));top:58%}
-  #drop{left:max(2.5vw,env(safe-area-inset-left));top:70%;width:100px;font-size:15px;letter-spacing:.5px}
-  #pause{right:max(3vw,env(safe-area-inset-right));top:70%;font-size:23px}
-  @media (min-width:850px){
-    .ctrl{opacity:.72}
-    #left{left:8%}#right{right:8%}#rotate{left:8%}#down{right:8%}#drop{left:7%}#pause{right:8%}
-  }
-
-/* 2.1b tactile polish */
-#mobileControls .ctrl,
-#controls button{
-  transition: transform .045s ease, background .08s ease, box-shadow .08s ease;
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#eef3f7;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;
+  touch-action:none;
+  overscroll-behavior:none;
 }
-#mobileControls .ctrl.pressed,
-#controls button.pressed{
-  transform: scale(.92);
-  background: rgba(255,255,255,.70)!important;
-  box-shadow: 0 2px 8px rgba(0,0,0,.18), inset 0 1px rgba(255,255,255,.95)!important;
-}
-
-
-/* ===== NEKO BLOCKS DX 2.2 polish ===== */
 body{
   background:
-    radial-gradient(circle at 50% 15%, rgba(255,255,255,.88), rgba(238,243,247,.98) 42%, rgba(225,232,238,1) 100%);
+    radial-gradient(circle at 50% 10%, rgba(255,255,255,.95), rgba(238,243,247,.98) 45%, rgba(224,232,238,1) 100%);
 }
-
-#controls button{
-  border-radius:22px;
-  border:1px solid rgba(20,30,40,.30);
-  background:rgba(255,255,255,.34);
-  box-shadow:
-    0 10px 26px rgba(0,0,0,.10),
-    inset 0 1px 0 rgba(255,255,255,.85);
-}
-
-#controls button::after{
-  content:"";
+#game{position:fixed;inset:0}
+#controls{position:fixed;inset:0;z-index:60;pointer-events:none;display:none}
+.ctrl{
   position:absolute;
-  inset:6px;
-  border-radius:16px;
-  border:1px solid rgba(255,255,255,.28);
-  pointer-events:none;
+  width:76px;height:76px;
+  border-radius:22px;
+  border:1px solid rgba(20,30,40,.32);
+  background:rgba(255,255,255,.34);
+  color:#0a0f14;
+  font-size:28px;
+  font-weight:900;
+  display:grid;place-items:center;
+  box-shadow:0 10px 26px rgba(0,0,0,.10), inset 0 1px rgba(255,255,255,.9);
+  backdrop-filter:blur(5px);
+  -webkit-backdrop-filter:blur(5px);
+  pointer-events:auto;
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:none;
+  transition:transform .045s ease,background .07s ease,box-shadow .07s ease;
 }
-
-#controls button.pressed{
+.ctrl.pressed{
   transform:translateY(2px) scale(.92);
-  background:rgba(255,255,255,.74)!important;
-  box-shadow:
-    0 3px 10px rgba(0,0,0,.16),
-    inset 0 1px 0 rgba(255,255,255,.95)!important;
+  background:rgba(255,255,255,.74);
+  box-shadow:0 3px 10px rgba(0,0,0,.18), inset 0 1px rgba(255,255,255,.96);
+}
+.ctrl.wide{width:104px;font-size:15px;letter-spacing:.5px}
+#left{left:3vw;top:47%}
+#right{right:3vw;top:47%}
+#rotate{left:3vw;top:59%}
+#down{right:3vw;top:59%}
+#drop{left:2.5vw;top:72%}
+#pause{right:3vw;top:72%;font-size:23px}
+@media(min-width:850px){
+  #left{left:8%}#right{right:8%}
+  #rotate{left:8%}#down{right:8%}
+  #drop{left:7%}#pause{right:8%}
 }
