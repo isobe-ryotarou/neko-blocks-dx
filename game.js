@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.16
+  NEKO BLOCKS DX 5.17
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -768,7 +768,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.16 • EMBOSS TOUCH',{
+    this.add.text(w/2,575,'BUILD 5.17 • ARCADE HUD REBUILD',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -1009,12 +1009,19 @@ class GameScene extends Phaser.Scene{
   }
 
   buildUI(){
-    // Main board: layered embossed frame.
+    // ============================================================
+    // 5.17 FULL HUD REBUILD
+    // Row 1: SCORE / STAGE / PAUSE
+    // Row 2: NEXT ×3 only
+    // Score rule is no longer permanently crammed into the top HUD.
+    // ============================================================
+
+    // Main board frame
     this.boardEmboss=this.addEmbossFrame(
       this.bx+CFG.boardW/2,
       this.by+CFG.boardH/2,
-      CFG.boardW+10,CFG.boardH+10,
-      0x18252d,0x56b4e9,0
+      CFG.boardW+12,CFG.boardH+12,
+      0x16242d,0x56b4e9,0
     );
 
     this.boardBg=this.add.rectangle(
@@ -1036,61 +1043,90 @@ class GameScene extends Phaser.Scene{
     this.activeLayer=this.add.container(0,0).setDepth(6);
     this.nextLayer=this.add.container(0,0).setDepth(20);
 
-    // SCORE and STAGE use the same embossed visual hierarchy.
-    this.scoreFrame=this.addEmbossFrame(68,28,118,46,0x061018,0xf0e442,18);
-    this.stageFrame=this.addEmbossFrame(190,28,118,46,0x061018,0x56b4e9,18);
+    // ---------- ROW 1 ----------
+    // Premium metal SCORE card
+    this.scoreCard=this.add.container(0,0).setDepth(20);
+    this.scoreCard.add([
+      this.add.rectangle(66,29,120,50,0x000000,.24),
+      this.add.rectangle(64,27,120,50,0x2f2505,.98).setStrokeStyle(2,0xffd54f,1),
+      this.add.rectangle(64,17,108,3,0xffffff,.24),
+      this.add.rectangle(64,38,108,4,0x000000,.38),
+      this.add.rectangle(10,27,3,38,0xffffff,.14),
+      this.add.rectangle(118,27,4,38,0x000000,.36),
+      this.add.rectangle(64,27,108,38,0x0a1015,.92).setStrokeStyle(1,0xffffff,.08)
+    ]);
 
-    this.scoreLabel=this.add.text(18,9,'SCORE',{
+    this.scoreLabel=this.add.text(16,10,'SCORE',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'9px',fontStyle:'bold',color:'#ffe56a'
-    }).setDepth(21);
+      fontSize:'10px',fontStyle:'bold',color:'#ffe88a'
+    }).setDepth(22);
 
-    this.stageLabel=this.add.text(140,9,'STAGE',{
+    this.scoreT=this.add.text(16,21,'0',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'9px',fontStyle:'bold',color:'#83d8ff'
-    }).setDepth(21);
-
-    this.scoreT=this.add.text(18,20,'0',{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'20px',fontStyle:'bold',
+      fontSize:'21px',fontStyle:'bold',
       color:'#ffffff',stroke:'#000000',strokeThickness:4
-    }).setDepth(21);
+    }).setDepth(22);
 
-    this.stageT=this.add.text(140,20,'1',{
+    // Premium blue STAGE card with identical size/weight
+    this.stageCard=this.add.container(0,0).setDepth(20);
+    this.stageCard.add([
+      this.add.rectangle(188,29,120,50,0x000000,.24),
+      this.add.rectangle(186,27,120,50,0x082b3a,.98).setStrokeStyle(2,0x56b4e9,1),
+      this.add.rectangle(186,17,108,3,0xffffff,.24),
+      this.add.rectangle(186,38,108,4,0x000000,.38),
+      this.add.rectangle(132,27,3,38,0xffffff,.14),
+      this.add.rectangle(240,27,4,38,0x000000,.36),
+      this.add.rectangle(186,27,108,38,0x0a1015,.92).setStrokeStyle(1,0xffffff,.08)
+    ]);
+
+    this.stageLabel=this.add.text(138,10,'STAGE',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'20px',fontStyle:'bold',
+      fontSize:'10px',fontStyle:'bold',color:'#91e4ff'
+    }).setDepth(22);
+
+    this.stageT=this.add.text(138,21,'1',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'21px',fontStyle:'bold',
       color:'#ffffff',stroke:'#000000',strokeThickness:4
-    }).setDepth(21);
+    }).setDepth(22);
 
-    // Score rule moved into its own mini embossed plate so it cannot overlap NEXT.
-    this.ruleFrame=this.addEmbossFrame(113,60,208,24,0x172630,0x6c8797,18);
-    this.scoreRule=this.add.text(113,60,'1個10pt  ×  消去数  ×  コンボ数',{
-      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:'9px',fontStyle:'bold',color:'#d9e8f0'
-    }).setOrigin(.5).setDepth(21);
-
-    // Pause button gets its own embossed square frame.
-    this.pauseFrame=this.addEmbossFrame(328,28,48,46,0x061018,0xf0e442,28);
-    this.pauseBtn=this.add.text(328,28,'Ⅱ',{
+    // Isolated pause control, completely outside SCORE/STAGE text flow
+    this.pauseFrame=this.addEmbossFrame(326,27,54,50,0x071019,0xffd54f,25);
+    this.pauseBtn=this.add.text(326,27,'Ⅱ',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'18px',fontStyle:'bold',
-      color:'#ffffff'
+      fontSize:'19px',fontStyle:'bold',color:'#ffffff'
     }).setOrigin(.5).setDepth(35).setInteractive({useHandCursor:true});
 
     this.pauseBtn.on('pointerdown',()=>{
       AUDIO.userGestureResume();
-      this.pauseBtn.setScale(.94).setAlpha(.72);
+      this.pauseBtn.setScale(.92).setAlpha(.74);
       this.togglePause();
     });
     this.pauseBtn.on('pointerup',()=>this.pauseBtn.setScale(1).setAlpha(1));
     this.pauseBtn.on('pointerout',()=>this.pauseBtn.setScale(1).setAlpha(1));
 
-    // NEXT title uses an embossed badge.
-    this.nextBadgeFrame=this.addEmbossFrame(60,91,94,34,0x061018,0xffd54f,18);
-    this.nextT=this.add.text(60,91,'次 / NEXT ×3',{
+    // ---------- ROW 2 : NEXT ONLY ----------
+    this.nextHeaderFrame=this.addEmbossFrame(64,82,104,34,0x09141a,0xffd54f,18);
+    this.nextT=this.add.text(64,82,'次  NEXT',{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:'11px',fontStyle:'bold',color:'#fff2a8'
-    }).setOrigin(.5).setDepth(21);
+      fontSize:'13px',fontStyle:'bold',color:'#fff0a0'
+    }).setOrigin(.5).setDepth(22);
+
+    // Initial short-lived score rule helper: no permanent overlap.
+    this.scoreRuleHint=this.add.text(this.scale.width/2,111,'得点：消去数 × 10 × コンボ数',{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:'10px',fontStyle:'bold',
+      color:'#20323d',
+      backgroundColor:'rgba(255,255,255,0.80)',
+      padding:{left:8,right:8,top:3,bottom:3}
+    }).setOrigin(.5).setDepth(24).setAlpha(0);
+
+    this.tweens.add({
+      targets:this.scoreRuleHint,
+      alpha:1,duration:280,delay:500,
+      hold:1600,yoyo:true,
+      onComplete:()=>this.scoreRuleHint.setVisible(false)
+    });
 
     this.chainT=this.add.text(this.scale.width/2,this.by+155,'',{
       fontFamily:'Arial Black, sans-serif',
@@ -1098,38 +1134,37 @@ class GameScene extends Phaser.Scene{
       color:'#ffffff',stroke:'#000000',strokeThickness:8
     }).setOrigin(.5).setAlpha(0).setDepth(75);
 
+    // Pause overlay / central resume
     this.pauseShade=this.add.rectangle(
       this.scale.width/2,this.scale.height/2,
       this.scale.width,this.scale.height,
-      0x000000,.72
+      0x000000,.75
     ).setVisible(false).setDepth(180).setInteractive();
 
-    this.pauseText=this.add.text(this.scale.width/2,this.scale.height/2-100,'PAUSE',{
+    this.pauseText=this.add.text(this.scale.width/2,this.scale.height/2-104,'PAUSE',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'40px',fontStyle:'bold',
-      color:'#ffffff',stroke:'#000000',strokeThickness:7
+      fontSize:'42px',fontStyle:'bold',
+      color:'#ffffff',stroke:'#000000',strokeThickness:8
     }).setOrigin(.5).setVisible(false).setDepth(181);
 
-    // Central resume button gets a strong embossed plate.
     this.resumeFrame=this.addEmbossFrame(
-      this.scale.width/2,this.scale.height/2,108,92,0xf0e442,0xffffff,181
+      this.scale.width/2,this.scale.height/2,116,98,0xf0e442,0xffffff,181
     );
     this.resumeFrame.setVisible(false);
 
     this.resumeBtn=this.add.text(this.scale.width/2,this.scale.height/2,'▶',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'58px',fontStyle:'bold',
-      color:'#071019'
+      fontSize:'62px',fontStyle:'bold',color:'#071019'
     }).setOrigin(.5).setVisible(false).setDepth(182).setInteractive({useHandCursor:true});
 
-    this.resumeHint=this.add.text(this.scale.width/2,this.scale.height/2+82,'タップして再開',{
+    this.resumeHint=this.add.text(this.scale.width/2,this.scale.height/2+84,'タップして再開',{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
       fontSize:'13px',fontStyle:'bold',color:'#ffffff'
     }).setOrigin(.5).setVisible(false).setDepth(182);
 
     this.resumeBtn.on('pointerdown',()=>{
       if(!this.pausedByUser)return;
-      this.resumeBtn.setScale(.92).setAlpha(.75);
+      this.resumeBtn.setScale(.90).setAlpha(.70);
       this.togglePause();
     });
     this.resumeBtn.on('pointerup',()=>this.resumeBtn.setScale(1).setAlpha(1));
@@ -1510,47 +1545,62 @@ class GameScene extends Phaser.Scene{
     const x=this.scale.width/2;
     const y=this.by+155;
 
-    // One clean wide bubble: combo label and points never overlap.
     const bubble=this.add.graphics().setDepth(92);
     bubble.fillStyle(0xffffff,.98);
     bubble.lineStyle(chainNo>=3?5:4,chainNo>=3?0xffd54f:0x101820,1);
-    bubble.fillRoundedRect(x-108,y-48,216,94,24);
-    bubble.strokeRoundedRect(x-108,y-48,216,94,24);
-    bubble.fillTriangle(x-16,y+44,x+10,y+44,x-3,y+62);
+    bubble.fillRoundedRect(x-116,y-52,232,104,24);
+    bubble.strokeRoundedRect(x-116,y-52,232,104,24);
+    bubble.fillTriangle(x-16,y+50,x+10,y+50,x-3,y+68);
 
-    const txt=this.add.text(x,y-17,label,{
+    const txt=this.add.text(x,y-22,label,{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:chainNo>=5?'30px':'27px',
+      fontSize:chainNo>=5?'30px':'28px',
       fontStyle:'bold',
       color:chainNo>=3?'#d52e2e':'#101820',
       stroke:'#ffffff',strokeThickness:2
     }).setOrigin(.5).setDepth(93).setScale(.4).setAlpha(0);
 
-    const gain=this.add.text(x,y+19,`+${(this.lastGain||0).toLocaleString('ja-JP')} pt`,{
+    const formula=`${count}個 × 10 × ${chainNo}`;
+    const detail=this.add.text(x,y+9,formula,{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:'11px',fontStyle:'bold',
+      color:'#52616b'
+    }).setOrigin(.5).setDepth(93).setAlpha(0);
+
+    const gain=this.add.text(x,y+31,`+${(this.lastGain||0).toLocaleString('ja-JP')} pt`,{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'16px',fontStyle:'bold',
-      color:'#c58b00',
+      fontSize:'17px',fontStyle:'bold',
+      color:'#b97700',
       stroke:'#ffffff',strokeThickness:2
-    }).setOrigin(.5).setDepth(93).setAlpha(0).setScale(.7);
+    }).setOrigin(.5).setDepth(94).setAlpha(0).setScale(.7);
 
     bubble.setScale(.45).setAlpha(0);
 
     this.tweens.add({
       targets:bubble,scale:1,alpha:1,
       duration:150,ease:'Back.easeOut',
-      hold:300,yoyo:true,
+      hold:340,yoyo:true,
       onComplete:()=>bubble.destroy()
     });
+
     this.tweens.add({
       targets:txt,scale:1,alpha:1,
       duration:165,ease:'Back.easeOut',
-      hold:280,yoyo:true,
+      hold:315,yoyo:true,
       onComplete:()=>txt.destroy()
     });
+
+    this.tweens.add({
+      targets:detail,alpha:1,
+      duration:140,delay:45,
+      hold:290,yoyo:true,
+      onComplete:()=>detail.destroy()
+    });
+
     this.tweens.add({
       targets:gain,alpha:1,scale:1,
-      duration:150,delay:55,
-      hold:250,yoyo:true,
+      duration:150,delay:70,
+      hold:270,yoyo:true,
       onComplete:()=>gain.destroy()
     });
   }
@@ -2254,12 +2304,7 @@ class GameScene extends Phaser.Scene{
       const stroke=boardStrokes[this.stage-1] ?? 0x1b2830;
       const alpha=this.stage>=9 ? .96 : (this.stage>=7 ? .94 : .92);
       this.boardBg.setFillStyle(fill,alpha);
-      this.boardBg.setStrokeStyle(4,stroke,1);
-    }
-
-    if(this.boardFrameGlow){
-      const glowColor=this.stage>=9?0xffd54f:(this.stage>=6?0x7c4dff:0x56b4e9);
-      this.boardFrameGlow.setStrokeStyle(3,glowColor,.42);
+      this.boardBg.setStrokeStyle(3,stroke,1);
     }
 
     this.redraw();
@@ -2313,26 +2358,40 @@ class GameScene extends Phaser.Scene{
     this.nextLayer.removeAll(true);
     if(!this.nextQueue || !this.nextQueue.length)return;
 
+    // Clear "NEXT 1 / 2 / 3" hierarchy.
     const centers=[150,224,298];
-    const centerY=92;
+    const centerY=83;
 
     this.nextQueue.slice(0,3).forEach((piece,index)=>{
-      const cellSize=index===0?18:16;
+      const isFirst=index===0;
+      const cellSize=isFirst?19:16;
       const cx=centers[index];
       const cy=centerY;
-      const slotW=index===0?68:62;
-      const slotH=58;
-      const accent=index===0?0xffd54f:0x56b4e9;
+      const slotW=isFirst?70:62;
+      const slotH=isFirst?60:56;
+      const accent=isFirst?0xffd54f:0x56b4e9;
 
-      // Embossed NEXT slot built directly into the container.
-      const shadow=this.add.rectangle(cx+2,cy+3,slotW+4,slotH+4,0x000000,.24);
+      // drop shadow
+      this.nextLayer.add(
+        this.add.rectangle(cx+3,cy+4,slotW+5,slotH+5,0x000000,.24)
+      );
+
+      // embossed slot
       const outer=this.add.rectangle(cx,cy,slotW+2,slotH+2,0x071019,.98)
-        .setStrokeStyle(2,accent,index===0?.95:.55);
-      const hiTop=this.add.rectangle(cx,cy-slotH/2+2,slotW-8,2,0xffffff,.20);
-      const hiLeft=this.add.rectangle(cx-slotW/2+2,cy,2,slotH-8,0xffffff,.14);
-      const loBottom=this.add.rectangle(cx,cy+slotH/2-2,slotW-8,3,0x000000,.42);
-      const loRight=this.add.rectangle(cx+slotW/2-2,cy,3,slotH-8,0x000000,.38);
-      this.nextLayer.add([shadow,outer,hiTop,hiLeft,loBottom,loRight]);
+        .setStrokeStyle(2,accent,isFirst?1:.55);
+      const top=this.add.rectangle(cx,cy-slotH/2+2,slotW-10,2,0xffffff,.24);
+      const left=this.add.rectangle(cx-slotW/2+2,cy,2,slotH-10,0xffffff,.16);
+      const bottom=this.add.rectangle(cx,cy+slotH/2-2,slotW-10,3,0x000000,.44);
+      const right=this.add.rectangle(cx+slotW/2-2,cy,3,slotH-10,0x000000,.40);
+      this.nextLayer.add([outer,top,left,bottom,right]);
+
+      const badge=this.add.text(cx,cy-slotH/2-10,isFirst?'次':'NEXT '+(index+1),{
+        fontFamily:'Arial Black, sans-serif',
+        fontSize:isFirst?'10px':'8px',
+        fontStyle:'bold',
+        color:isFirst?'#8a6500':'#506a79'
+      }).setOrigin(.5);
+      this.nextLayer.add(badge);
 
       const mw=piece.matrix[0].length;
       const mh=piece.matrix.length;

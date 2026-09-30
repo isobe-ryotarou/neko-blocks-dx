@@ -1,14 +1,19 @@
-NEKO BLOCKS DX 5.16 — EMBOSS TOUCH
+NEKO BLOCKS DX 5.17 — ARCADE HUD REBUILD
 
-Changes:
-- Active falling piece now grows to 128% while touched/held.
-- Added a soft touch glow so the held piece feels more tactile.
-- Landing ghost/navigation remains exactly the normal size.
-- Score rule moved into its own mini frame to prevent text overlap:
-  "1個10pt × 消去数 × コンボ数"
-- SCORE, STAGE, score-rule, NEXT badge, NEXT slots, board frame,
-  pause button and central resume button now use layered embossed/beveled frames.
-- NEXT previews made slightly larger again.
+Major HUD redesign:
+- Removed the permanently crowded score-rule text from under SCORE.
+- Top row is now SCORE / STAGE / PAUSE only.
+- Second row is NEXT only.
+- Score and Stage have matching premium metal cards.
+- Pause is isolated at far right.
+- NEXT hierarchy is clearer:
+  first slot = 次
+  second/third slots = NEXT 2 / NEXT 3
+- First NEXT piece is larger and more prominent.
+- Score rule is shown briefly at game start, then disappears.
+- Every clear now explains scoring inside the combo popup:
+  e.g. "4個 × 10 × 2" and "+80 pt".
+- Frames use deeper multi-layer bevels, highlights, dark edges and shadows.
 
-BUILD 5.16 • EMBOSS TOUCH
-Cache: 5160
+BUILD 5.17 • ARCADE HUD REBUILD
+Cache: 5170
