@@ -1,17 +1,11 @@
-NEKO BLOCKS DX 5.20 — LAYOUT BREAKTHROUGH
+NEKO BLOCKS DX 5.21 — STOCK STAR
 
-Structural breakthrough:
-- Canvas width expanded from 360 to 420.
-- Board remains centered with real side margin.
-- Right side now has a dedicated 54×226 AUTO DROP control lane.
-- AUTO DROP uses a separate invisible 60×236 hit zone, so it is reliably tappable.
-- AUTO DROP shows clear OFF / ON state, arrow and LED.
-- Top HUD is numerically aligned:
-  SCORE center x=80, width=140
-  STAGE center x=230, width=140
-  PAUSE center x=365, width=70
-  all at y=30, height=50.
-- NEXT row re-centered for the wider canvas.
+- 2コンボ成立時に、お助け流れ星 💫 が1つ流れます。
+- 流れ星をタップするとAUTO DROPの上にストックされます。
+- ストック上限は3個。
+- ストックされた星をタップすると1個消費して下6段を消去します。
+- 下6段消去時は雷・フラッシュ・画面揺れ・衝撃波・粒子演出。
+- 旧「詰みかけ・1ステージ1回」ルールは廃止。
 
-BUILD 5.20 • LAYOUT BREAKTHROUGH
-Cache: 5200
+BUILD 5.21 • STOCK STAR
+Cache: 5210

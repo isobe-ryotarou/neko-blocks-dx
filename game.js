@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.20
+  NEKO BLOCKS DX 5.21
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -768,7 +768,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.20 • LAYOUT BREAKTHROUGH',{
+    this.add.text(w/2,575,'BUILD 5.21 • STOCK STAR',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -905,8 +905,9 @@ class GameScene extends Phaser.Scene{
     // 5.18: selectable drag-drop mode
     this.instantDropMode=false;
 
-    // One rescue star per stage
-    this.rescueStarUsed=new Set();
+    // 5.21: combo reward star stock
+    this.rescueStarStock=0;
+    this.rescueStarMax=3;
     this.rescueStarActive=null;
 
     // 5.7: stage-FX runtime state
@@ -1119,9 +1120,45 @@ class GameScene extends Phaser.Scene{
       onComplete:()=>this.scoreRuleHint.setVisible(false)
     });
 
+    // ---------- RESCUE STAR STOCK ----------
+    this.rescueStockFrame=this.addEmbossFrame(390,205,58,150,0x071019,0xffd54f,28);
+    this.rescueStockLabel=this.add.text(390,146,'STAR',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'10px',fontStyle:'bold',
+      color:'#fff1a6'
+    }).setOrigin(.5).setDepth(33);
+
+    this.rescueStockCount=this.add.text(390,162,'0/3',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'11px',fontStyle:'bold',
+      color:'#d8e8f0'
+    }).setOrigin(.5).setDepth(33);
+
+    this.rescueStockSlots=[];
+    [188,220,252].forEach((sy,index)=>{
+      const bg=this.add.rectangle(390,sy,44,28,0x0b151b,.96)
+        .setStrokeStyle(1,0x6b7f8b,.35)
+        .setDepth(32);
+
+      const icon=this.add.text(390,sy,'☆',{fontSize:'22px'})
+        .setOrigin(.5).setAlpha(.30).setDepth(33);
+
+      const hit=this.add.zone(390,sy,48,30)
+        .setDepth(41)
+        .setInteractive({useHandCursor:true});
+
+      hit.on('pointerdown',()=>{
+        if(index>=this.rescueStarStock)return;
+        this.useRescueStock();
+      });
+
+      this.rescueStockSlots.push({bg,icon,hit});
+    });
+    this.updateRescueStockUI();
+
     // ---------- REAL RIGHT-SIDE AUTO DROP CONTROL ----------
     const dropX=390;
-    const dropY=this.by+CFG.boardH*.50;
+    const dropY=this.by+CFG.boardH*.58;
 
     // Visual panel
     this.dropPanelShadow=this.add.rectangle(dropX+3,dropY+5,56,230,0x000000,.34)
@@ -1512,39 +1549,46 @@ class GameScene extends Phaser.Scene{
     });
   }
 
-  isNearGameOver(){
-    // "Almost stuck": any occupied block reaches the top five rows.
-    for(let y=0;y<5;y++){
-      for(let x=0;x<CFG.cols;x++){
-        if(this.board.grid[y][x])return true;
-      }
+  updateRescueStockUI(){
+    if(!this.rescueStockSlots)return;
+
+    this.rescueStockSlots.forEach((slot,index)=>{
+      const filled=index<this.rescueStarStock;
+      slot.icon.setText(filled?'💫':'☆');
+      slot.icon.setAlpha(filled?1:.30);
+      slot.icon.setScale(filled?1:.82);
+      slot.bg.setStrokeStyle(
+        filled?2:1,
+        filled?0xffd54f:0x6b7f8b,
+        filled?.95:.35
+      );
+    });
+
+    if(this.rescueStockCount){
+      this.rescueStockCount.setText(`${this.rescueStarStock}/3`);
+      this.rescueStockCount.setColor(this.rescueStarStock>=3?'#fff2a0':'#d8e8f0');
     }
-    return false;
   }
 
-  maybeSpawnRescueStar(){
+  spawnComboRewardStar(){
     if(this.ended || this.pausedByUser || this.stageCutin)return;
-    if(!this.isNearGameOver())return;
-    if(this.rescueStarUsed.has(this.stage))return;
+    if(this.rescueStarStock>=this.rescueStarMax)return;
     if(this.rescueStarActive)return;
 
-    this.rescueStarUsed.add(this.stage);
+    const y=this.by+82+Math.random()*120;
+    const star=this.add.text(-34,y,'💫',{fontSize:'40px'})
+      .setOrigin(.5).setDepth(170).setInteractive({useHandCursor:true});
 
-    const y=this.by+70+Math.random()*130;
-    const star=this.add.text(-30,y,'💫',{
-      fontSize:'38px'
-    }).setOrigin(.5).setDepth(170).setInteractive({useHandCursor:true});
-
-    const glow=this.add.circle(-30,y,28,0xfff59d,.14)
-      .setStrokeStyle(2,0xffffff,.35)
+    const glow=this.add.circle(-34,y,30,0xfff59d,.16)
+      .setStrokeStyle(2,0xffffff,.42)
       .setDepth(169);
 
-    this.rescueStarActive={star,glow,stage:this.stage};
+    this.rescueStarActive={star,glow};
 
     const tween=this.tweens.add({
       targets:[star,glow],
-      x:this.scale.width+35,
-      duration:5200,
+      x:this.scale.width+38,
+      duration:5000,
       ease:'Linear',
       onComplete:()=>{
         if(this.rescueStarActive?.star===star)this.rescueStarActive=null;
@@ -1557,47 +1601,97 @@ class GameScene extends Phaser.Scene{
       if(!star.active)return;
       tween.stop();
 
-      // Remove the bottom five board rows only.
-      for(let y=CFG.rows-5;y<CFG.rows;y++){
-        for(let x=0;x<CFG.cols;x++)this.board.grid[y][x]=null;
+      if(this.rescueStarStock<this.rescueStarMax){
+        this.rescueStarStock++;
+        this.updateRescueStockUI();
+
+        const stockMsg=this.add.text(360,150,'💫 STOCK!',{
+          fontFamily:'Arial Black, sans-serif',
+          fontSize:'15px',fontStyle:'bold',
+          color:'#fff1a6',
+          stroke:'#000000',strokeThickness:5
+        }).setOrigin(.5).setDepth(176).setScale(.6).setAlpha(0);
+
+        this.tweens.add({
+          targets:stockMsg,
+          scale:1,alpha:1,y:stockMsg.y-14,
+          duration:180,ease:'Back.easeOut',
+          hold:260,yoyo:true,
+          onComplete:()=>stockMsg.destroy()
+        });
+
+        this.toneRescueCatch();
       }
 
-      this.board.collapse();
-      this.redraw();
+      this.rescueStarActive=null;
+      star.destroy();
+      glow.destroy();
+    });
+  }
 
-      AUDIO.thunder(4);
-      this.cameras.main.flash(220,255,245,150);
-      this.cameras.main.shake(360,.018);
+  toneRescueCatch(){
+    AUDIO.tone(880,.06,.035,'square');
+    AUDIO.tone(1175,.08,.032,'triangle',.05);
+    AUDIO.tone(1568,.11,.028,'triangle',.10);
+  }
 
-      this.fxShockwave(
-        this.bx+CFG.boardW/2,
-        this.by+CFG.boardH-70,
-        0xffd54f,5,8
-      );
-      this.fxBurst(
-        this.bx+CFG.boardW/2,
-        this.by+CFG.boardH-70,
-        0xffffff,52,60,220
-      );
+  useRescueStock(){
+    if(this.rescueStarStock<=0 || this.ended || this.pausedByUser)return;
 
-      const msg=this.add.text(this.scale.width/2,this.by+CFG.boardH-90,'お助け！\\n下5段クリア',{
+    this.rescueStarStock--;
+    this.updateRescueStockUI();
+
+    for(let y=CFG.rows-6;y<CFG.rows;y++){
+      for(let x=0;x<CFG.cols;x++)this.board.grid[y][x]=null;
+    }
+
+    this.board.collapse();
+
+    if(this.piece && this.state==='FALLING'){
+      let guard=0;
+      while(this.board.collides(this.piece) && this.piece.y>-4 && guard<8){
+        this.piece.y--;
+        guard++;
+      }
+    }
+
+    this.redraw();
+
+    AUDIO.thunder(5);
+    this.cameras.main.flash(240,255,245,155);
+    this.cameras.main.shake(400,.020);
+
+    this.fxShockwave(
+      this.bx+CFG.boardW/2,
+      this.by+CFG.boardH-84,
+      0xffd54f,6,9
+    );
+    this.fxBurst(
+      this.bx+CFG.boardW/2,
+      this.by+CFG.boardH-84,
+      0xffffff,64,70,260
+    );
+
+    const msg=this.add.text(
+      this.bx+CFG.boardW/2,
+      this.by+CFG.boardH-110,
+      `💫 お助けスター！
+下6段クリア`,
+      {
         fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
         fontSize:'24px',fontStyle:'bold',
         align:'center',
         color:'#fff5b0',
         stroke:'#000000',strokeThickness:7
-      }).setOrigin(.5).setDepth(175).setScale(.5).setAlpha(0);
+      }
+    ).setOrigin(.5).setDepth(175).setScale(.5).setAlpha(0);
 
-      this.tweens.add({
-        targets:msg,scale:1,alpha:1,y:msg.y-24,
-        duration:220,ease:'Back.easeOut',
-        hold:420,yoyo:true,
-        onComplete:()=>msg.destroy()
-      });
-
-      this.rescueStarActive=null;
-      star.destroy();
-      glow.destroy();
+    this.tweens.add({
+      targets:msg,
+      scale:1,alpha:1,y:msg.y-26,
+      duration:220,ease:'Back.easeOut',
+      hold:430,yoyo:true,
+      onComplete:()=>msg.destroy()
     });
   }
 
@@ -1621,7 +1715,6 @@ class GameScene extends Phaser.Scene{
       if(nextStage!==this.stage){
         this.enterStage(nextStage);
       }else{
-        this.maybeSpawnRescueStar();
         this.time.delayedCall(CFG.spawnDelay,()=>this.spawn());
       }
       return;
@@ -1649,6 +1742,11 @@ class GameScene extends Phaser.Scene{
     if(chainNo>=3)AUDIO.thunder(chainNo);
 
     this.showChain(chainNo,uniq.length);
+
+    if(chainNo===2){
+      this.time.delayedCall(140,()=>this.spawnComboRewardStar());
+    }
+
     this.animateClear(uniq,chainNo,()=>{
       this.board.remove(uniq);
 
