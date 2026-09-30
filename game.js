@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.9.1
+  NEKO BLOCKS DX 5.10
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -664,7 +664,7 @@ class TitleScene extends Phaser.Scene{
       fontSize:'40px',fontStyle:'bold',
       color:'#ffffff',stroke:'#0a3145',strokeThickness:8,
       shadow:{offsetX:0,offsetY:0,color:'#56b4e9',blur:18,fill:true}
-    }).setOrigin(.5).setDepth(6).setScale(.72).setAlpha(0);
+    }).setOrigin(.5).setDepth(6).setScale(.72).setAlpha(0).setInteractive({useHandCursor:true});
 
     const dx=this.add.text(w/2,282,'DX',{
       fontFamily:'Arial Black, sans-serif',
@@ -720,9 +720,87 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.9.1 • DARK SPIN',{
+    this.add.text(w/2,575,'BUILD 5.10 • SECRET STAGE SELECT',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
+
+    // Hidden developer/secret mode: tap the title logo 5 times quickly.
+    this.secretTapCount=0;
+    this.secretTapTimer=null;
+
+    const resetSecretTap=()=>{
+      this.secretTapCount=0;
+      if(this.secretTapTimer){
+        this.secretTapTimer.remove(false);
+        this.secretTapTimer=null;
+      }
+    };
+
+    const openSecretStageSelect=()=>{
+      resetSecretTap();
+      AUDIO.userGestureResume();
+
+      const overlay=this.add.rectangle(w/2,h/2,w,h,0x02070b,.94)
+        .setDepth(300).setInteractive();
+      const frame=this.add.rectangle(w/2,h/2,326,470,0x071019,.98)
+        .setStrokeStyle(3,0x56b4e9,.95).setDepth(301);
+      const title=this.add.text(w/2,145,'SECRET STAGE SELECT',{
+        fontFamily:'Arial Black, sans-serif',fontSize:'21px',fontStyle:'bold',
+        color:'#f0e442',stroke:'#000000',strokeThickness:6
+      }).setOrigin(.5).setDepth(302);
+      const note=this.add.text(w/2,182,'開発・確認用 / BEST記録には反映しません',{
+        fontFamily:'"Noto Sans JP", sans-serif',fontSize:'11px',fontStyle:'bold',
+        color:'#b8d5e5'
+      }).setOrigin(.5).setDepth(302);
+
+      const objs=[overlay,frame,title,note];
+
+      for(let i=1;i<=10;i++){
+        const col=(i-1)%2;
+        const row=Math.floor((i-1)/2);
+        const x=116+col*128;
+        const y=238+row*62;
+        const isFinal=i===10;
+
+        const b=this.add.text(x,y,`STAGE ${i}`,{
+          fontFamily:'Arial Black, sans-serif',fontSize:'17px',fontStyle:'bold',
+          color:isFinal?'#0a0a0a':'#071019',
+          backgroundColor:isFinal?'#f0e442':'#dff4ff',
+          padding:{left:16,right:16,top:10,bottom:10}
+        }).setOrigin(.5).setDepth(303).setInteractive({useHandCursor:true});
+
+        b.on('pointerdown',()=>{
+          b.setScale(.94).setAlpha(.72);
+          AUDIO.userGestureResume();
+          AUDIO.stopTitleMusic(.18);
+          this.time.delayedCall(200,()=>{
+            this.scene.start('Game',{secretMode:true,secretStage:i});
+          });
+        });
+        objs.push(b);
+      }
+
+      const close=this.add.text(w/2,566,'×  CLOSE',{
+        fontFamily:'Arial Black, sans-serif',fontSize:'15px',
+        color:'#ffffff',backgroundColor:'#243541',
+        padding:{left:22,right:22,top:8,bottom:8}
+      }).setOrigin(.5).setDepth(303).setInteractive({useHandCursor:true});
+
+      close.on('pointerdown',()=>{
+        objs.forEach(o=>o&&o.destroy&&o.destroy());
+        close.destroy();
+      });
+    };
+
+    logo.on('pointerdown',()=>{
+      this.secretTapCount++;
+      if(this.secretTapTimer)this.secretTapTimer.remove(false);
+      this.secretTapTimer=this.time.delayedCall(1200,resetSecretTap);
+      if(this.secretTapCount>=5){
+        this.cameras.main.flash(120,86,180,233);
+        openSecretStageSelect();
+      }
+    });
 
     this.add.text(w/2,643,'CONNECT  •  DROP  •  CHAIN',{
       fontFamily:'Arial Black, sans-serif',fontSize:'12px',color:'#9fb8c7'
@@ -747,16 +825,19 @@ class TitleScene extends Phaser.Scene{
 class GameScene extends Phaser.Scene{
   constructor(){super('Game')}
 
-  create(){
+  create(data={}){
     setControlsVisible(true);
 
     this.board=new Board();
     this.factory=new PieceFactory();
 
+    this.secretMode=!!data.secretMode;
+    this.secretStartStage=Phaser.Math.Clamp(Number(data.secretStage)||1,1,10);
+
     this.score=0;
-    this.clears=0;
-    this.level=1;
-    this.stage=1;
+    this.stage=this.secretMode?this.secretStartStage:1;
+    this.clears=this.secretMode?(this.stage-1)*10:0;
+    this.level=1+Math.floor(this.clears/10);
     this.best=Store.best();
 
     this.state='SPAWN';
@@ -779,12 +860,14 @@ class GameScene extends Phaser.Scene{
     this.buildUI();
     this.bindControls();
     this.applyTheme();
-    this.stageArrivalFX(1);
+    this.stageArrivalFX(this.stage);
 
-    this.factory.setStage(1);
+    this.factory.setStage(this.stage);
     this.next=this.factory.create();
 
-    AUDIO.setStage(1);
+    AUDIO.setStage(this.stage);
+    if(this.secretMode)this.buildSecretStageControls();
+
     this.spawn();
   }
 
@@ -849,6 +932,47 @@ class GameScene extends Phaser.Scene{
     this.pauseText=this.add.text(this.scale.width/2,this.scale.height/2,'PAUSE',{
       fontFamily:'Arial Black, sans-serif',fontSize:'44px',color:'#ffffff'
     }).setOrigin(.5).setVisible(false).setDepth(131);
+  }
+
+  buildSecretStageControls(){
+    const w=this.scale.width;
+
+    this.add.text(w/2,631,`SECRET MODE • STAGE ${this.stage}`,{
+      fontFamily:'Arial Black, sans-serif',fontSize:'10px',fontStyle:'bold',
+      color:'#f0e442',stroke:'#000000',strokeThickness:3
+    }).setOrigin(.5).setDepth(140);
+
+    const prev=this.add.text(55,656,'◀ STAGE',{
+      fontFamily:'Arial Black, sans-serif',fontSize:'10px',fontStyle:'bold',
+      color:'#071019',backgroundColor:'#d9eef9',
+      padding:{left:8,right:8,top:6,bottom:6}
+    }).setOrigin(.5).setDepth(140).setInteractive({useHandCursor:true});
+
+    const title=this.add.text(w/2,656,'TITLE',{
+      fontFamily:'Arial Black, sans-serif',fontSize:'10px',fontStyle:'bold',
+      color:'#ffffff',backgroundColor:'#263944',
+      padding:{left:12,right:12,top:6,bottom:6}
+    }).setOrigin(.5).setDepth(140).setInteractive({useHandCursor:true});
+
+    const next=this.add.text(w-55,656,'STAGE ▶',{
+      fontFamily:'Arial Black, sans-serif',fontSize:'10px',fontStyle:'bold',
+      color:'#071019',backgroundColor:'#d9eef9',
+      padding:{left:8,right:8,top:6,bottom:6}
+    }).setOrigin(.5).setDepth(140).setInteractive({useHandCursor:true});
+
+    const jump=(s)=>{
+      const stage=Phaser.Math.Clamp(s,1,10);
+      AUDIO.stop();
+      this.scene.restart({secretMode:true,secretStage:stage});
+    };
+
+    prev.on('pointerdown',()=>jump(this.stage<=1?10:this.stage-1));
+    next.on('pointerdown',()=>jump(this.stage>=10?1:this.stage+1));
+    title.on('pointerdown',()=>{
+      AUDIO.stop();
+      setControlsVisible(false);
+      this.scene.start('Title');
+    });
   }
 
   buttonVisual(el,down){
@@ -1803,7 +1927,7 @@ class GameScene extends Phaser.Scene{
       retry.on('pointerdown',()=>{
         retry.setScale(.94).setAlpha(.72);
         AUDIO.userGestureResume();
-        this.time.delayedCall(90,()=>this.scene.restart());
+        this.time.delayedCall(90,()=>this.scene.restart(this.secretMode?{secretMode:true,secretStage:this.stage}:{}));
       });
     });
   }
@@ -1951,7 +2075,7 @@ class GameScene extends Phaser.Scene{
       : (Array.isArray(REAL_BGM[this.stage])?REAL_BGM[this.stage][0]:REAL_BGM[this.stage]);
     this.musicT.setText(music?'BGM: '+music.title:'');
 
-    if(this.score>this.best){
+    if(!this.secretMode && this.score>this.best){
       this.best=this.score;
       Store.setBest(this.best);
     }
@@ -2125,7 +2249,7 @@ STAGE ${this.stage}`,
       retry.on('pointerdown',()=>{
         retry.setScale(.94).setAlpha(.72);
         AUDIO.userGestureResume();
-        this.time.delayedCall(90,()=>this.scene.restart());
+        this.time.delayedCall(90,()=>this.scene.restart(this.secretMode?{secretMode:true,secretStage:this.stage}:{}));
       });
     });
   }

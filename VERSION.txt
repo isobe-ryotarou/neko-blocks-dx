@@ -1,9 +1,14 @@
-NEKO BLOCKS DX 5.9.1 — DARK SPIN
+NEKO BLOCKS DX 5.10 — SECRET STAGE SELECT
 
-Fixes / improvements:
-- Restored strong stage-by-stage darkening of the background.
-- Board panel also darkens with stage progression; stage 10 stays black + gold border.
-- Fixed the Game Over demo hint text "もう一度挑戦" being cut off by moving it upward and adding a stroke.
-- For chain 3 and above, clear blocks now enlarge and rotate before vanishing.
-- Cache bust: 591
-- Build marker: BUILD 5.9.1 • DARK SPIN
+How to open:
+- On the title screen, tap the NEKO BLOCKS logo 5 times within about 1.2 seconds.
+
+Secret mode:
+- Choose STAGE 1–10 directly.
+- Selected stage starts with its stage BGM, speed, darkening and arrival FX.
+- BEST score is not updated in secret mode.
+- During secret play: ◀ STAGE / TITLE / STAGE ▶ controls are available.
+- Retry keeps the current selected stage.
+
+BUILD 5.10 • SECRET STAGE SELECT
+Cache: 5100
