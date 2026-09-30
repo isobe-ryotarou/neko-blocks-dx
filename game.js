@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.12
+  NEKO BLOCKS DX 5.13
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -12,9 +12,9 @@
 const CFG={
   cols:10,
   rows:20,
-  cell:26,
-  boardW:260,
-  boardH:520,
+  cell:28,
+  boardW:280,
+  boardH:560,
   lockDelay:380,
   spawnDelay:120,
   clearDelay:230,
@@ -750,7 +750,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.12 • HUD & PAUSE',{
+    this.add.text(w/2,575,'BUILD 5.13 • LAYOUT REBUILD',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -889,7 +889,7 @@ class GameScene extends Phaser.Scene{
     this.stageAmbientTimers=[];
 
     this.bx=Math.floor((this.scale.width-CFG.boardW)/2);
-    this.by=96;
+    this.by=118;
 
     this.buildUI();
     this.bindControls();
@@ -910,6 +910,7 @@ class GameScene extends Phaser.Scene{
   }
 
   buildUI(){
+    // 5.13 full HUD/layout rebuild.
     this.boardBg=this.add.rectangle(
       this.bx+CFG.boardW/2,
       this.by+CFG.boardH/2,
@@ -918,7 +919,7 @@ class GameScene extends Phaser.Scene{
     ).setStrokeStyle(3,0x1b2830,1);
 
     this.guides=this.add.graphics();
-    this.guides.lineStyle(1,0x6d7c86,.18);
+    this.guides.lineStyle(1,0x6d7c86,.16);
     for(let x=1;x<CFG.cols;x++){
       const px=this.bx+x*CFG.cell;
       this.guides.lineBetween(px,this.by,px,this.by+CFG.boardH);
@@ -929,36 +930,40 @@ class GameScene extends Phaser.Scene{
     this.activeLayer=this.add.container(0,0).setDepth(6);
     this.nextLayer=this.add.container(0,0).setDepth(20);
 
-    // 5.12: stronger score HUD
-    this.scoreBox=this.add.rectangle(68,29,124,50,0x071019,.94)
-      .setStrokeStyle(2,0x56b4e9,.98).setDepth(19);
+    // SCORE and STAGE are deliberately equal-weight cards.
+    this.scoreBox=this.add.rectangle(68,28,116,44,0x071019,.94)
+      .setStrokeStyle(2,0x56b4e9,.95).setDepth(19);
+    this.stageBox=this.add.rectangle(190,28,116,44,0x071019,.94)
+      .setStrokeStyle(2,0x56b4e9,.95).setDepth(19);
 
-    this.scoreLabel=this.add.text(14,8,'SCORE',{
+    this.scoreLabel=this.add.text(18,11,'SCORE',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'10px',fontStyle:'bold',color:'#8fdcff'
+      fontSize:'9px',fontStyle:'bold',color:'#83d8ff'
+    }).setDepth(20);
+    this.stageLabel=this.add.text(140,11,'STAGE',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'9px',fontStyle:'bold',color:'#83d8ff'
     }).setDepth(20);
 
-    this.scoreT=this.add.text(14,20,'0',{
+    this.scoreT=this.add.text(18,22,'0',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'23px',fontStyle:'bold',
+      fontSize:'20px',fontStyle:'bold',
       color:'#ffffff',stroke:'#000000',strokeThickness:4
     }).setDepth(20);
 
-    this.clearT=this.add.text(14,58,'CLEAR 0',{
+    this.stageT=this.add.text(140,22,'1',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'12px',fontStyle:'bold',color:'#14232d'
+      fontSize:'20px',fontStyle:'bold',
+      color:'#ffffff',stroke:'#000000',strokeThickness:4
     }).setDepth(20);
 
-    this.stageT=this.add.text(this.scale.width-12,8,'STAGE 1',{
-      fontFamily:'Arial Black, sans-serif',fontSize:'15px',color:'#14232d'
-    }).setOrigin(1,0).setDepth(20);
-
-    this.pauseBtn=this.add.text(this.scale.width-12,34,'Ⅱ',{
+    // Pause is isolated at far right; it no longer shares space with STAGE/NEXT.
+    this.pauseBtn=this.add.text(328,28,'Ⅱ',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'17px',fontStyle:'bold',
+      fontSize:'18px',fontStyle:'bold',
       color:'#ffffff',backgroundColor:'#071019',
-      padding:{left:10,right:10,top:5,bottom:5}
-    }).setOrigin(1,0).setDepth(35).setInteractive({useHandCursor:true});
+      padding:{left:10,right:10,top:8,bottom:8}
+    }).setOrigin(.5).setDepth(35).setInteractive({useHandCursor:true});
 
     this.pauseBtn.on('pointerdown',()=>{
       AUDIO.userGestureResume();
@@ -968,10 +973,10 @@ class GameScene extends Phaser.Scene{
     this.pauseBtn.on('pointerup',()=>this.pauseBtn.setScale(1).setAlpha(1));
     this.pauseBtn.on('pointerout',()=>this.pauseBtn.setScale(1).setAlpha(1));
 
-    this.nextT=this.add.text(158,57,'NEXT ×3',{
+    this.nextT=this.add.text(12,57,'NEXT ×3',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'9px',fontStyle:'bold',color:'#14232d'
-    }).setOrigin(.5,0).setDepth(20);
+      fontSize:'10px',fontStyle:'bold',color:'#14232d'
+    }).setDepth(20);
 
     this.chainT=this.add.text(this.scale.width/2,this.by+155,'',{
       fontFamily:'Arial Black, sans-serif',
@@ -979,38 +984,61 @@ class GameScene extends Phaser.Scene{
       color:'#ffffff',stroke:'#000000',strokeThickness:8
     }).setOrigin(.5).setAlpha(0).setDepth(75);
 
+    // Pause overlay.
     this.pauseShade=this.add.rectangle(
       this.scale.width/2,this.scale.height/2,
       this.scale.width,this.scale.height,
-      0x000000,.68
-    ).setVisible(false).setDepth(130);
+      0x000000,.72
+    ).setVisible(false).setDepth(180).setInteractive();
 
-    this.pauseText=this.add.text(this.scale.width/2,this.scale.height/2,'PAUSE',{
-      fontFamily:'Arial Black, sans-serif',fontSize:'44px',color:'#ffffff'
-    }).setOrigin(.5).setVisible(false).setDepth(131);
+    this.pauseText=this.add.text(this.scale.width/2,this.scale.height/2-100,'PAUSE',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'40px',fontStyle:'bold',
+      color:'#ffffff',stroke:'#000000',strokeThickness:7
+    }).setOrigin(.5).setVisible(false).setDepth(181);
+
+    this.resumeBtn=this.add.text(this.scale.width/2,this.scale.height/2,'▶',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'58px',fontStyle:'bold',
+      color:'#071019',backgroundColor:'#f0e442',
+      padding:{left:27,right:25,top:13,bottom:13}
+    }).setOrigin(.5).setVisible(false).setDepth(182).setInteractive({useHandCursor:true});
+
+    this.resumeHint=this.add.text(this.scale.width/2,this.scale.height/2+82,'タップして再開',{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:'13px',fontStyle:'bold',color:'#ffffff'
+    }).setOrigin(.5).setVisible(false).setDepth(182);
+
+    this.resumeBtn.on('pointerdown',()=>{
+      if(!this.pausedByUser)return;
+      this.resumeBtn.setScale(.92).setAlpha(.75);
+      this.togglePause();
+    });
+    this.resumeBtn.on('pointerup',()=>this.resumeBtn.setScale(1).setAlpha(1));
+    this.resumeBtn.on('pointerout',()=>this.resumeBtn.setScale(1).setAlpha(1));
   }
 
   buildSecretStageControls(){
     const w=this.scale.width;
 
-    this.add.text(w/2,631,`SECRET MODE • STAGE ${this.stage}`,{
+    this.add.text(w/2,697,`SECRET • STAGE ${this.stage}`,{
       fontFamily:'Arial Black, sans-serif',fontSize:'10px',fontStyle:'bold',
       color:'#f0e442',stroke:'#000000',strokeThickness:3
     }).setOrigin(.5).setDepth(140);
 
-    const prev=this.add.text(55,656,'◀ STAGE',{
+    const prev=this.add.text(55,701,'◀ STAGE',{
       fontFamily:'Arial Black, sans-serif',fontSize:'10px',fontStyle:'bold',
       color:'#071019',backgroundColor:'#d9eef9',
       padding:{left:8,right:8,top:6,bottom:6}
     }).setOrigin(.5).setDepth(140).setInteractive({useHandCursor:true});
 
-    const title=this.add.text(w/2,656,'TITLE',{
+    const title=this.add.text(w/2,701,'TITLE',{
       fontFamily:'Arial Black, sans-serif',fontSize:'10px',fontStyle:'bold',
       color:'#ffffff',backgroundColor:'#263944',
       padding:{left:12,right:12,top:6,bottom:6}
     }).setOrigin(.5).setDepth(140).setInteractive({useHandCursor:true});
 
-    const next=this.add.text(w-55,656,'STAGE ▶',{
+    const next=this.add.text(w-55,701,'STAGE ▶',{
       fontFamily:'Arial Black, sans-serif',fontSize:'10px',fontStyle:'bold',
       color:'#071019',backgroundColor:'#d9eef9',
       padding:{left:8,right:8,top:6,bottom:6}
@@ -2013,20 +2041,22 @@ class GameScene extends Phaser.Scene{
     if(this.ended||this.stageCutin)return;
 
     this.pausedByUser=!this.pausedByUser;
+
     this.pauseShade.setVisible(this.pausedByUser);
-    this.pauseText
-      .setVisible(this.pausedByUser)
-      .setText(this.pausedByUser?'PAUSE\n\n▶ で再開':'PAUSE');
+    this.pauseText.setVisible(this.pausedByUser);
+    this.resumeBtn.setVisible(this.pausedByUser).setScale(1).setAlpha(1);
+    this.resumeHint.setVisible(this.pausedByUser);
 
     if(this.pauseBtn){
-      this.pauseBtn.setText(this.pausedByUser?'▶':'Ⅱ');
-      this.pauseBtn.setBackgroundColor(this.pausedByUser?'#f0e442':'#071019');
-      this.pauseBtn.setColor(this.pausedByUser?'#071019':'#ffffff');
+      this.pauseBtn.setVisible(!this.pausedByUser);
       this.pauseBtn.setScale(1).setAlpha(1);
     }
 
-    if(this.pausedByUser)AUDIO.pause();
-    else AUDIO.resume();
+    if(this.pausedByUser){
+      AUDIO.pause();
+    }else{
+      AUDIO.resume();
+    }
   }
 
   applyTheme(){
@@ -2107,17 +2137,17 @@ class GameScene extends Phaser.Scene{
     this.nextLayer.removeAll(true);
     if(!this.nextQueue || !this.nextQueue.length)return;
 
-    // 5.12: 150% larger preview tiles in three independent slots.
-    const centers=[205,260,315];
-    const centerY=70;
+    // Three large, non-overlapping previews.
+    const centers=[118,196,274];
+    const centerY=84;
 
     this.nextQueue.slice(0,3).forEach((piece,index)=>{
-      const cellSize=index===0?13:12;
+      const cellSize=16;
       const cx=centers[index];
       const cy=centerY;
 
-      const slot=this.add.rectangle(cx,cy,50,50,0x071019,.10)
-        .setStrokeStyle(index===0?2:1,index===0?0x56b4e9:0x6d7c86,index===0?.48:.24);
+      const slot=this.add.rectangle(cx,cy,68,56,0x071019,.10)
+        .setStrokeStyle(index===0?2:1,index===0?0x56b4e9:0x6d7c86,index===0?.52:.25);
       this.nextLayer.add(slot);
 
       const mw=piece.matrix[0].length;
@@ -2173,8 +2203,7 @@ class GameScene extends Phaser.Scene{
 
   updateHUD(){
     this.scoreT.setText(this.score.toLocaleString('ja-JP'));
-    this.clearT.setText('CLEAR '+this.clears);
-    this.stageT.setText('STAGE '+this.stage);
+    this.stageT.setText(String(this.stage));
 
     if(!this.secretMode && this.score>this.best){
       this.best=this.score;

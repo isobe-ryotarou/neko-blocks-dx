@@ -1,13 +1,16 @@
-NEKO BLOCKS DX 5.12 — HUD & PAUSE
+NEKO BLOCKS DX 5.13 — LAYOUT REBUILD
 
-- Added crisp click sound on successful rotation.
-- NEXT ×3 previews are about 150% larger than 5.11.
-- NEXT previews use three separate horizontal slots, so they do not overlap.
-- SCORE now has a strong framed arcade HUD with larger digits.
-- Added a visible pause button in the upper-right.
-- Pause button changes from Ⅱ to ▶ while paused.
-- Touch controls remain: tap rotate / drag move / drag down.
-- Secret stage select remains available.
+Major screen-layout rebuild:
+- Game blocks enlarged from 26px to 28px cells.
+- Board enlarged from 260×520 to 280×560.
+- NEXT ×3 previews rebuilt as three large 68×56 slots using 16px preview cells.
+- SCORE and STAGE now use matching framed HUD cards and equal visual hierarchy.
+- CLEAR counter removed from the visible HUD.
+- Pause button isolated at the far upper-right.
+- When paused, a large central ▶ button appears and resumes play.
+- Pause overlay also shows "タップして再開".
+- Direct touch controls preserved.
+- Secret stage select preserved.
 
-BUILD 5.12 • HUD & PAUSE
-Cache: 5120
+BUILD 5.13 • LAYOUT REBUILD
+Cache: 5130
