@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.13
+  NEKO BLOCKS DX 5.14
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -202,25 +202,33 @@ class AudioEngine{
   }
 
   comboVoice(chain){
-    // Spoken combo call when the browser has a Japanese voice.
-    // Falls back to an arcade pitch call if speech synthesis is unavailable.
     const text=chain<=1?'コンボ！':`${chain}コンボ！`;
     try{
       if('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window){
         window.speechSynthesis.cancel();
         const u=new SpeechSynthesisUtterance(text);
         u.lang='ja-JP';
-        u.rate=1.22;
-        u.pitch=1.18+Math.min(chain,6)*.035;
-        u.volume=.85;
+        u.rate=1.34;
+        u.pitch=1.42+Math.min(chain,7)*.045;
+        u.volume=1.0;
+        const voices=window.speechSynthesis.getVoices?.()||[];
+        const jp=voices.find(v=>String(v.lang||'').toLowerCase().startsWith('ja'));
+        if(jp)u.voice=jp;
         window.speechSynthesis.speak(u);
+
+        // bright arcade cheer underneath the voice
+        const base=620+Math.min(chain,8)*62;
+        this.tone(base,.07,.04,'square');
+        this.tone(base*1.24,.09,.035,'triangle',.05);
+        this.tone(base*1.52,.11,.03,'triangle',.10);
       }else{
         throw new Error('speech unavailable');
       }
     }catch{
-      const base=520+Math.min(chain,8)*55;
-      this.tone(base,.09,.045,'square');
-      this.tone(base*1.32,.12,.04,'triangle',.07);
+      const base=620+Math.min(chain,8)*62;
+      this.tone(base,.07,.05,'square');
+      this.tone(base*1.24,.10,.045,'triangle',.05);
+      this.tone(base*1.52,.12,.04,'triangle',.10);
     }
   }
   thunder(chain){
@@ -750,7 +758,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.13 • LAYOUT REBUILD',{
+    this.add.text(w/2,575,'BUILD 5.14 • SCORE & LUXURY HUD',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -910,16 +918,23 @@ class GameScene extends Phaser.Scene{
   }
 
   buildUI(){
-    // 5.13 full HUD/layout rebuild.
     this.boardBg=this.add.rectangle(
       this.bx+CFG.boardW/2,
       this.by+CFG.boardH/2,
       CFG.boardW,CFG.boardH,
       0xffffff,.94
-    ).setStrokeStyle(3,0x1b2830,1);
+    ).setStrokeStyle(4,0x223849,1);
+
+    // decorative outer board glow/frame
+    this.boardFrameGlow=this.add.rectangle(
+      this.bx+CFG.boardW/2,
+      this.by+CFG.boardH/2,
+      CFG.boardW+8,CFG.boardH+8,
+      0x000000,0
+    ).setStrokeStyle(2,0x56b4e9,.35).setDepth(-1);
 
     this.guides=this.add.graphics();
-    this.guides.lineStyle(1,0x6d7c86,.16);
+    this.guides.lineStyle(1,0x6d7c86,.14);
     for(let x=1;x<CFG.cols;x++){
       const px=this.bx+x*CFG.cell;
       this.guides.lineBetween(px,this.by,px,this.by+CFG.boardH);
@@ -930,34 +945,46 @@ class GameScene extends Phaser.Scene{
     this.activeLayer=this.add.container(0,0).setDepth(6);
     this.nextLayer=this.add.container(0,0).setDepth(20);
 
-    // SCORE and STAGE are deliberately equal-weight cards.
-    this.scoreBox=this.add.rectangle(68,28,116,44,0x071019,.94)
-      .setStrokeStyle(2,0x56b4e9,.95).setDepth(19);
-    this.stageBox=this.add.rectangle(190,28,116,44,0x071019,.94)
-      .setStrokeStyle(2,0x56b4e9,.95).setDepth(19);
+    // Luxury SCORE card
+    this.scoreGlow=this.add.rectangle(68,28,120,48,0xf0e442,.08)
+      .setStrokeStyle(6,0xf0e442,.12).setDepth(18);
+    this.scoreBox=this.add.rectangle(68,28,116,44,0x061018,.96)
+      .setStrokeStyle(2,0xf0e442,.98).setDepth(19);
 
-    this.scoreLabel=this.add.text(18,11,'SCORE',{
+    // Luxury STAGE card
+    this.stageGlow=this.add.rectangle(190,28,120,48,0x56b4e9,.08)
+      .setStrokeStyle(6,0x56b4e9,.12).setDepth(18);
+    this.stageBox=this.add.rectangle(190,28,116,44,0x061018,.96)
+      .setStrokeStyle(2,0x56b4e9,.98).setDepth(19);
+
+    this.scoreLabel=this.add.text(18,10,'SCORE',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'9px',fontStyle:'bold',color:'#ffe56a'
+    }).setDepth(20);
+
+    this.stageLabel=this.add.text(140,10,'STAGE',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'9px',fontStyle:'bold',color:'#83d8ff'
     }).setDepth(20);
-    this.stageLabel=this.add.text(140,11,'STAGE',{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'9px',fontStyle:'bold',color:'#83d8ff'
-    }).setDepth(20);
 
-    this.scoreT=this.add.text(18,22,'0',{
+    this.scoreT=this.add.text(18,21,'0',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'20px',fontStyle:'bold',
       color:'#ffffff',stroke:'#000000',strokeThickness:4
     }).setDepth(20);
 
-    this.stageT=this.add.text(140,22,'1',{
+    this.stageT=this.add.text(140,21,'1',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'20px',fontStyle:'bold',
       color:'#ffffff',stroke:'#000000',strokeThickness:4
     }).setDepth(20);
 
-    // Pause is isolated at far right; it no longer shares space with STAGE/NEXT.
+    // Small, always-readable score rule.
+    this.scoreRule=this.add.text(12,56,'10pt × 消去数 × コンボ数',{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:'9px',fontStyle:'bold',color:'#445865'
+    }).setDepth(20);
+
     this.pauseBtn=this.add.text(328,28,'Ⅱ',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'18px',fontStyle:'bold',
@@ -973,10 +1000,13 @@ class GameScene extends Phaser.Scene{
     this.pauseBtn.on('pointerup',()=>this.pauseBtn.setScale(1).setAlpha(1));
     this.pauseBtn.on('pointerout',()=>this.pauseBtn.setScale(1).setAlpha(1));
 
-    this.nextT=this.add.text(12,57,'NEXT ×3',{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'10px',fontStyle:'bold',color:'#14232d'
-    }).setDepth(20);
+    // NEXT label has explicit "次" meaning.
+    this.nextBadge=this.add.rectangle(61,84,86,32,0x061018,.96)
+      .setStrokeStyle(2,0xffd54f,.95).setDepth(19);
+    this.nextT=this.add.text(61,84,'次 / NEXT ×3',{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:'11px',fontStyle:'bold',color:'#fff2a8'
+    }).setOrigin(.5).setDepth(20);
 
     this.chainT=this.add.text(this.scale.width/2,this.by+155,'',{
       fontFamily:'Arial Black, sans-serif',
@@ -984,7 +1014,6 @@ class GameScene extends Phaser.Scene{
       color:'#ffffff',stroke:'#000000',strokeThickness:8
     }).setOrigin(.5).setAlpha(0).setDepth(75);
 
-    // Pause overlay.
     this.pauseShade=this.add.rectangle(
       this.scale.width/2,this.scale.height/2,
       this.scale.width,this.scale.height,
@@ -1016,6 +1045,10 @@ class GameScene extends Phaser.Scene{
     });
     this.resumeBtn.on('pointerup',()=>this.resumeBtn.setScale(1).setAlpha(1));
     this.resumeBtn.on('pointerout',()=>this.resumeBtn.setScale(1).setAlpha(1));
+
+    // Subtle breathing glows.
+    this.tweens.add({targets:[this.scoreGlow,this.stageGlow],alpha:{from:.10,to:.24},
+      duration:1000,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
   }
 
   buildSecretStageControls(){
@@ -1318,8 +1351,12 @@ class GameScene extends Phaser.Scene{
 
     this.state='CLEARING';
 
-    const multiplier=Math.pow(2,Math.max(0,chainNo-1));
-    this.score+=uniq.length*25*multiplier*this.level;
+    // 5.14 simple score rule:
+    // 1 block = 10 pt. Chain multiplier = 1x / 2x / 3x / 4x...
+    const multiplier=Math.max(1,chainNo);
+    const gained=uniq.length*10*multiplier;
+    this.score+=gained;
+    this.lastGain=gained;
     this.clears++;
     this.level=1+Math.floor(this.clears/10);
 
@@ -1432,6 +1469,21 @@ class GameScene extends Phaser.Scene{
       hold:230,yoyo:true,
       onComplete:()=>tiny.destroy()
     });
+    const gain=this.add.text(x,y+52,`+${(this.lastGain||0).toLocaleString('ja-JP')} pt`,{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'15px',fontStyle:'bold',
+      color:'#ffd54f',
+      stroke:'#000000',strokeThickness:4
+    }).setOrigin(.5).setDepth(94).setAlpha(0).setScale(.7);
+
+    this.tweens.add({
+      targets:gain,
+      alpha:1,scale:1,y:gain.y-8,
+      duration:170,ease:'Back.easeOut',
+      hold:260,yoyo:true,
+      onComplete:()=>gain.destroy()
+    });
+
   }
 
   chainLightning(chainNo,cells){
@@ -2099,7 +2151,12 @@ class GameScene extends Phaser.Scene{
       const stroke=boardStrokes[this.stage-1] ?? 0x1b2830;
       const alpha=this.stage>=9 ? .96 : (this.stage>=7 ? .94 : .92);
       this.boardBg.setFillStyle(fill,alpha);
-      this.boardBg.setStrokeStyle(3,stroke,1);
+      this.boardBg.setStrokeStyle(4,stroke,1);
+    }
+
+    if(this.boardFrameGlow){
+      const glowColor=this.stage>=9?0xffd54f:(this.stage>=6?0x7c4dff:0x56b4e9);
+      this.boardFrameGlow.setStrokeStyle(3,glowColor,.42);
     }
 
     this.redraw();
@@ -2137,17 +2194,22 @@ class GameScene extends Phaser.Scene{
     this.nextLayer.removeAll(true);
     if(!this.nextQueue || !this.nextQueue.length)return;
 
-    // Three large, non-overlapping previews.
-    const centers=[118,196,274];
+    const centers=[150,224,298];
     const centerY=84;
 
     this.nextQueue.slice(0,3).forEach((piece,index)=>{
-      const cellSize=16;
+      const cellSize=index===0?17:15;
       const cx=centers[index];
       const cy=centerY;
+      const slotW=index===0?66:60;
+      const slotH=56;
 
-      const slot=this.add.rectangle(cx,cy,68,56,0x071019,.10)
-        .setStrokeStyle(index===0?2:1,index===0?0x56b4e9:0x6d7c86,index===0?.52:.25);
+      const slotGlow=this.add.rectangle(cx,cy,slotW+6,slotH+6,index===0?0xffd54f:0x56b4e9,.05)
+        .setStrokeStyle(4,index===0?0xffd54f:0x56b4e9,.12);
+      this.nextLayer.add(slotGlow);
+
+      const slot=this.add.rectangle(cx,cy,slotW,slotH,0x071019,.12)
+        .setStrokeStyle(index===0?2:1,index===0?0xffd54f:0x6d7c86,index===0?.85:.30);
       this.nextLayer.add(slot);
 
       const mw=piece.matrix[0].length;

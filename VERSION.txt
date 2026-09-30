@@ -1,16 +1,18 @@
-NEKO BLOCKS DX 5.13 — LAYOUT REBUILD
+NEKO BLOCKS DX 5.14 — SCORE & LUXURY HUD
 
-Major screen-layout rebuild:
-- Game blocks enlarged from 26px to 28px cells.
-- Board enlarged from 260×520 to 280×560.
-- NEXT ×3 previews rebuilt as three large 68×56 slots using 16px preview cells.
-- SCORE and STAGE now use matching framed HUD cards and equal visual hierarchy.
-- CLEAR counter removed from the visible HUD.
-- Pause button isolated at the far upper-right.
-- When paused, a large central ▶ button appears and resumes play.
-- Pause overlay also shows "タップして再開".
-- Direct touch controls preserved.
-- Secret stage select preserved.
+Changes:
+- Simplified scoring:
+  1 block = 10 pt
+  score = cleared blocks × 10 × combo count
+  Example: 4 blocks at 1 combo = 40 pt
+           4 blocks at 2 combo = 80 pt
+           5 blocks at 3 combo = 150 pt
+- Added +POINT gain display on every clear.
+- Combo voice is faster, higher, louder and layered with an arcade cheer.
+- SCORE / STAGE / NEXT / board borders upgraded with premium arcade-style frames.
+- NEXT label changed to "次 / NEXT ×3".
+- First NEXT preview is highlighted larger and brighter.
+- Board frame glow changes by stage.
 
-BUILD 5.13 • LAYOUT REBUILD
-Cache: 5130
+BUILD 5.14 • SCORE & LUXURY HUD
+Cache: 5140
