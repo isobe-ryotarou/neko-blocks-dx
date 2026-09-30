@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.6
+  NEKO BLOCKS DX 5.7
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -720,7 +720,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.6.2',{
+    this.add.text(w/2,575,'BUILD 5.7 • FX OVERDRIVE',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -767,6 +767,11 @@ class GameScene extends Phaser.Scene{
     this.stageCutin=false;
     this.softDrop=false;
     this.dropAccum=0;
+
+    // 5.7: stage-FX runtime state
+    this.stageAmbientObjects=[];
+    this.stageAmbientTweens=[];
+    this.stageAmbientTimers=[];
 
     this.bx=Math.floor((this.scale.width-CFG.boardW)/2);
     this.by=96;
@@ -1191,182 +1196,400 @@ class GameScene extends Phaser.Scene{
   }
 
 
-  stageArrivalFX(stage){
+  clearStageAmbientFX(){
+    for(const tw of this.stageAmbientTweens||[]){
+      try{tw.stop()}catch{}
+    }
+    for(const tm of this.stageAmbientTimers||[]){
+      try{tm.remove(false)}catch{}
+    }
+    for(const o of this.stageAmbientObjects||[]){
+      try{o.destroy()}catch{}
+    }
+    this.stageAmbientTweens=[];
+    this.stageAmbientTimers=[];
+    this.stageAmbientObjects=[];
+  }
+
+  fxShockwave(cx,cy,color,count=3,maxScale=7){
+    for(let i=0;i<count;i++){
+      const r=this.add.circle(cx,cy,22)
+        .setStrokeStyle(Math.max(2,6-i),color,.95-i*.14)
+        .setDepth(112)
+        .setAlpha(.95);
+      this.tweens.add({
+        targets:r,
+        scale:maxScale+i*1.4,
+        alpha:0,
+        duration:520+i*135,
+        delay:i*65,
+        ease:'Cubic.easeOut',
+        onComplete:()=>r.destroy()
+      });
+    }
+  }
+
+  fxBurst(cx,cy,color,count=34,speedMin=90,speedMax=225){
+    for(let i=0;i<count;i++){
+      const a=(i/count)*Math.PI*2+(Math.random()-.5)*.12;
+      const d=speedMin+Math.random()*(speedMax-speedMin);
+      const size=1.5+Math.random()*3.3;
+      const p=this.add.circle(cx,cy,size,color,.95).setDepth(114);
+      this.tweens.add({
+        targets:p,
+        x:cx+Math.cos(a)*d,
+        y:cy+Math.sin(a)*d,
+        alpha:0,
+        scale:.15,
+        duration:520+Math.random()*420,
+        ease:'Cubic.easeOut',
+        onComplete:()=>p.destroy()
+      });
+    }
+  }
+
+  fxCometRain(color,count=14,angle=18){
+    const h=this.scale.height,w=this.scale.width;
+    for(let i=0;i<count;i++){
+      const startX=-80+Math.random()*(w+160);
+      const startY=-80-Math.random()*220;
+      const len=38+Math.random()*68;
+      const beam=this.add.rectangle(startX,startY,3,len,color,.72)
+        .setAngle(angle).setDepth(111);
+      this.tweens.add({
+        targets:beam,
+        x:startX+130,
+        y:h+120,
+        alpha:0,
+        duration:650+Math.random()*620,
+        delay:Math.random()*260,
+        ease:'Cubic.easeIn',
+        onComplete:()=>beam.destroy()
+      });
+    }
+  }
+
+  fxLightning(color,branches=3,power=1){
     const w=this.scale.width;
+    const top=this.by-8;
+    const bottom=this.by+CFG.boardH+12;
+    for(let n=0;n<branches;n++){
+      const gg=this.add.graphics().setDepth(115);
+      const baseX=w*(.18+(.64*(n+1)/(branches+1)));
+      const width=Math.max(2,4*power);
+      gg.lineStyle(width,color,.98);
+      gg.beginPath();
+      let x=baseX+(Math.random()-.5)*35;
+      gg.moveTo(x,top);
+      const seg=10;
+      for(let i=1;i<=seg;i++){
+        x+=(Math.random()-.5)*(30+power*12);
+        gg.lineTo(x,Phaser.Math.Linear(top,bottom,i/seg));
+      }
+      gg.strokePath();
+
+      const glow=this.add.graphics().setDepth(114);
+      glow.lineStyle(width*2.8,color,.18);
+      glow.beginPath();
+      let gx=baseX;
+      glow.moveTo(gx,top);
+      for(let i=1;i<=seg;i++){
+        gx+=(Math.random()-.5)*(26+power*10);
+        glow.lineTo(gx,Phaser.Math.Linear(top,bottom,i/seg));
+      }
+      glow.strokePath();
+
+      this.tweens.add({targets:[gg,glow],alpha:0,duration:220+Math.random()*180,
+        onComplete:()=>{gg.destroy();glow.destroy();}});
+    }
+  }
+
+  fxEdgeRays(color,count=10){
+    const w=this.scale.width,h=this.scale.height;
+    for(let i=0;i<count;i++){
+      const fromLeft=i%2===0;
+      const x=fromLeft?-120:w+120;
+      const y=80+Math.random()*(h-170);
+      const ray=this.add.rectangle(x,y,180+Math.random()*180,3+Math.random()*4,color,.46)
+        .setAngle(fromLeft?-10:190).setDepth(109);
+      this.tweens.add({
+        targets:ray,
+        x:fromLeft?w+180:-180,
+        alpha:0,
+        duration:420+Math.random()*360,
+        delay:Math.random()*240,
+        ease:'Cubic.easeOut',
+        onComplete:()=>ray.destroy()
+      });
+    }
+  }
+
+  fxShards(cx,cy,color,count=22){
+    for(let i=0;i<count;i++){
+      const a=Math.random()*Math.PI*2;
+      const d=90+Math.random()*145;
+      const s=this.add.triangle(cx,cy,0,0,5,18,10,0,color,.88)
+        .setAngle(Phaser.Math.RadToDeg(a)+90)
+        .setDepth(113);
+      this.tweens.add({
+        targets:s,
+        x:cx+Math.cos(a)*d,
+        y:cy+Math.sin(a)*d,
+        angle:s.angle+180+Math.random()*180,
+        alpha:0,
+        scale:.25,
+        duration:540+Math.random()*320,
+        ease:'Cubic.easeOut',
+        onComplete:()=>s.destroy()
+      });
+    }
+  }
+
+  fxConfetti(colors,count=34){
+    const w=this.scale.width,h=this.scale.height;
+    for(let i=0;i<count;i++){
+      const color=colors[i%colors.length];
+      const x=10+Math.random()*(w-20);
+      const y=-20-Math.random()*150;
+      const c=this.add.rectangle(x,y,4+Math.random()*5,10+Math.random()*12,color,.9)
+        .setAngle(Math.random()*180).setDepth(111);
+      this.tweens.add({
+        targets:c,
+        y:h+50,
+        x:x+(Math.random()-.5)*120,
+        angle:c.angle+360*(Math.random()>.5?1:-1),
+        alpha:.12,
+        duration:1200+Math.random()*1000,
+        delay:Math.random()*260,
+        ease:'Sine.easeIn',
+        onComplete:()=>c.destroy()
+      });
+    }
+  }
+
+  startStageAmbientFX(stage){
+    this.clearStageAmbientFX();
+
+    const palette=[
+      [0x7ad7ff,0xffffff,0xffe082],
+      [0xffd54f,0xffffff,0xef5350],
+      [0xb388ff,0x7c4dff,0xff4081],
+      [0xff80ab,0xffffff,0xffd54f],
+      [0x4dd0e1,0xffb74d,0xffffff],
+      [0xff7043,0xffca28,0x7e57c2],
+      [0x5c6bc0,0x26c6da,0xffd54f],
+      [0x66bb6a,0x26a69a,0xb2ff59],
+      [0xffffff,0xef5350,0xffd54f],
+      [0xffd54f,0xffffff,0xff8f00]
+    ][stage-1]||[0xffffff];
+
+    const w=this.scale.width,h=this.scale.height;
+
+    // Small ambient edge particles only; never cover the central playfield.
+    for(let i=0;i<10;i++){
+      const side=i%2===0?-1:1;
+      const x=side<0 ? 5+Math.random()*22 : w-5-Math.random()*22;
+      const y=95+Math.random()*(h-140);
+      const p=this.add.circle(x,y,1.2+Math.random()*2.4,palette[i%palette.length],.20+.18*Math.random())
+        .setDepth(2);
+      this.stageAmbientObjects.push(p);
+      const tw=this.tweens.add({
+        targets:p,
+        y:y-55-Math.random()*90,
+        x:x+side*(Math.random()*8),
+        alpha:{from:p.alpha,to:.03},
+        scale:{from:1,to:1.8},
+        duration:1700+Math.random()*1900,
+        delay:Math.random()*1200,
+        yoyo:true,
+        repeat:-1,
+        ease:'Sine.easeInOut'
+      });
+      this.stageAmbientTweens.push(tw);
+    }
+
+    // Higher stages gain periodic subtle edge flashes.
+    if(stage>=6){
+      const timer=this.time.addEvent({
+        delay:2100-Math.min(700,(stage-6)*140),
+        loop:true,
+        callback:()=>{
+          if(this.ended||this.stageCutin)return;
+          const col=palette[(Math.random()*palette.length)|0];
+          const side=Math.random()<.5?0:w;
+          const ray=this.add.rectangle(side,120+Math.random()*(h-240),105,2,col,.18)
+            .setDepth(2).setAngle(side===0?-8:188);
+          this.tweens.add({
+            targets:ray,
+            x:side===0?120:w-120,
+            alpha:0,
+            duration:480,
+            onComplete:()=>ray.destroy()
+          });
+        }
+      });
+      this.stageAmbientTimers.push(timer);
+    }
+
+    if(stage===10){
+      const timer=this.time.addEvent({
+        delay:2600,
+        loop:true,
+        callback:()=>{
+          if(this.ended||this.stageCutin)return;
+          const g=this.add.graphics().setDepth(3);
+          g.lineStyle(2,0xffd54f,.24);
+          g.beginPath();
+          const x=Math.random()<.5?18:w-18;
+          g.moveTo(x,95);
+          let px=x;
+          for(let j=1;j<=6;j++){
+            px+=(Math.random()-.5)*18;
+            g.lineTo(px,95+j*62);
+          }
+          g.strokePath();
+          this.tweens.add({targets:g,alpha:0,duration:260,onComplete:()=>g.destroy()});
+        }
+      });
+      this.stageAmbientTimers.push(timer);
+    }
+  }
+
+  stageArrivalFX(stage){
+    const w=this.scale.width,h=this.scale.height;
     const cx=w/2;
     const cy=this.by+CFG.boardH*.43;
 
-    const colors=[
-      0x56b4e9,0x56d9f5,0xf0e442,0xffffff,0xffc266,
-      0xc8b4ff,0xcc79a7,0x9adfff,0xffffff,0xffd54f
-    ];
-    const col=colors[Math.max(0,Math.min(9,stage-1))];
+    const P=[
+      {main:0x7ad7ff,accent:0xffe082,flash:[155,225,255],label:'#eafaff',sub:'SKY BURST'},
+      {main:0xffd54f,accent:0xef5350,flash:[255,220,150],label:'#fff3c4',sub:'MARCH PARADE'},
+      {main:0xb388ff,accent:0xff4081,flash:[190,150,255],label:'#f2e8ff',sub:'DARK REQUIEM'},
+      {main:0xff80ab,accent:0xffffff,flash:[255,165,210],label:'#ffe9f1',sub:'CAN-CAN FEVER'},
+      {main:0x4dd0e1,accent:0xffb74d,flash:[135,235,255],label:'#e5fcff',sub:'HEROIC RUSH'},
+      {main:0xff7043,accent:0xffca28,flash:[255,150,95],label:'#fff0df',sub:'DANCE IGNITION'},
+      {main:0x5c6bc0,accent:0xffd54f,flash:[120,145,255],label:'#edf0ff',sub:'JAZZ NIGHT'},
+      {main:0x66bb6a,accent:0xb2ff59,flash:[120,230,165],label:'#e9ffe9',sub:'MOUNTAIN KING'},
+      {main:0xffffff,accent:0xef5350,flash:[255,245,220],label:'#ffffff',sub:'VICTORY MARCH'},
+      {main:0xffd54f,accent:0xffffff,flash:[255,210,70],label:'#fff2a8',sub:'FINAL OVERDRIVE'}
+    ][stage-1];
 
-    this.cameras.main.flash(90+stage*7,
-      (col>>16)&255,(col>>8)&255,col&255
-    );
-    this.cameras.main.shake(110+stage*8,.003+stage*.0005);
+    // Every stage now starts with a 10th-stage-class multi-layer hit.
+    this.cameras.main.flash(stage===10?220:150,...P.flash);
+    this.cameras.main.shake(stage===10?420:250,stage===10?.016:.009);
 
-    // stage 1: concentric rings
-    if(stage===1){
-      for(let i=0;i<3;i++){
-        const r=this.add.circle(cx,cy,16).setStrokeStyle(3,col,.86).setDepth(112);
-        this.tweens.add({
-          targets:r,scale:4.5+i*1.5,alpha:0,
-          duration:500+i*120,delay:i*70,
-          ease:'Cubic.easeOut',onComplete:()=>r.destroy()
-        });
-      }
+    // short dark veil makes bright FX pop without hiding gameplay
+    const veil=this.add.rectangle(w/2,h/2,w,h,0x000000,stage===10?.36:.18).setDepth(106);
+    this.tweens.add({targets:veil,alpha:0,duration:520,onComplete:()=>veil.destroy()});
+
+    this.fxShockwave(cx,cy,P.main,stage===10?5:4,stage===10?9:7.5);
+    this.fxBurst(cx,cy,P.main,stage===10?48:36,95,stage===10?270:220);
+    this.fxBurst(cx,cy,P.accent,stage===10?30:20,70,185);
+    this.fxEdgeRays(P.accent,stage===10?14:10);
+
+    // stage-specific high-impact layer
+    switch(stage){
+      case 1:
+        this.fxCometRain(P.main,12,16);
+        this.fxShards(cx,cy,P.accent,14);
+        break;
+      case 2:
+        this.fxConfetti([0xffd54f,0xffffff,0xef5350],38);
+        this.fxCometRain(0xffffff,8,8);
+        break;
+      case 3:
+        this.fxLightning(P.main,3,.8);
+        this.fxShards(cx,cy,P.accent,24);
+        break;
+      case 4:
+        this.fxEdgeRays(P.main,16);
+        this.fxConfetti([0xff80ab,0xffffff,0xffd54f],28);
+        break;
+      case 5:
+        this.fxCometRain(P.accent,20,25);
+        this.fxShards(cx,cy,P.main,26);
+        break;
+      case 6:
+        this.fxCometRain(P.main,18,14);
+        this.fxConfetti([0xff7043,0xffca28,0x7e57c2],30);
+        this.fxLightning(P.accent,2,.65);
+        break;
+      case 7:
+        this.fxShockwave(cx,cy,P.accent,3,6);
+        this.fxCometRain(P.main,12,-12);
+        this.fxShards(cx,cy,P.accent,20);
+        break;
+      case 8:
+        this.fxLightning(P.accent,4,.9);
+        this.fxShards(cx,cy,P.main,34);
+        this.fxCometRain(0x9cffb0,10,20);
+        break;
+      case 9:
+        this.fxConfetti([0xffffff,0xef5350,0xffd54f],44);
+        this.fxEdgeRays(0xffffff,14);
+        this.fxCometRain(P.accent,10,10);
+        break;
+      case 10:
+        this.fxLightning(0xffd54f,6,1.35);
+        this.fxLightning(0xffffff,3,.7);
+        this.fxShards(cx,cy,0xffd54f,40);
+        this.fxCometRain(0xffd54f,24,20);
+        this.fxConfetti([0xffd54f,0xffffff,0xff8f00],42);
+        break;
     }
 
-    // stage 2: horizontal speed lines
-    if(stage===2){
-      for(let i=0;i<18;i++){
-        const y=this.by+30+Math.random()*(CFG.boardH-60);
-        const s=this.add.rectangle(-90,y,80+Math.random()*90,2,col,.68).setDepth(112);
-        this.tweens.add({
-          targets:s,x:w+120,alpha:0,
-          duration:300+Math.random()*260,delay:Math.random()*170,
-          ease:'Cubic.easeOut',onComplete:()=>s.destroy()
-        });
-      }
-    }
+    // Central title plate
+    const plate=this.add.rectangle(cx,this.by+45,stage===10?268:230,56,0x06090d,.78)
+      .setStrokeStyle(stage===10?3:2,P.main,.92)
+      .setDepth(116)
+      .setScale(.2,.8)
+      .setAlpha(0);
 
-    // stage 3: radial sparks
-    if(stage===3){
-      for(let i=0;i<26;i++){
-        const a=i/26*Math.PI*2;
-        const p=this.add.circle(cx,cy,2.3,col,.95).setDepth(112);
-        this.tweens.add({
-          targets:p,
-          x:cx+Math.cos(a)*(100+Math.random()*95),
-          y:cy+Math.sin(a)*(100+Math.random()*95),
-          alpha:0,scale:.2,
-          duration:520+Math.random()*250,
-          ease:'Quad.easeOut',onComplete:()=>p.destroy()
-        });
-      }
-    }
-
-    // stage 4: diagonal slash barrage
-    if(stage===4){
-      for(let i=0;i<6;i++){
-        const b=this.add.rectangle(-120,cy-160+i*60,260,6,col,.62)
-          .setAngle(-24).setDepth(112);
-        this.tweens.add({
-          targets:b,x:w+160,alpha:0,
-          duration:430,delay:i*80,
-          ease:'Cubic.easeOut',onComplete:()=>b.destroy()
-        });
-      }
-    }
-
-    // stage 5: impact shockwave
-    if(stage===5){
-      const disk=this.add.circle(cx,cy,20,col,.17).setDepth(111);
-      const ring=this.add.circle(cx,cy,24).setStrokeStyle(6,col,.96).setDepth(112);
-      this.tweens.add({targets:disk,scale:11,alpha:0,duration:650,onComplete:()=>disk.destroy()});
-      this.tweens.add({targets:ring,scale:8,alpha:0,duration:560,onComplete:()=>ring.destroy()});
-    }
-
-    // stage 6: meteor shower
-    if(stage===6){
-      for(let i=0;i<22;i++){
-        const p=this.add.rectangle(
-          this.bx+Math.random()*CFG.boardW,
-          this.by-60-Math.random()*170,
-          2,20+Math.random()*24,col,.72
-        ).setAngle(18).setDepth(112);
-        this.tweens.add({
-          targets:p,
-          x:p.x+70,y:this.by+CFG.boardH+60,alpha:0,
-          duration:650+Math.random()*480,delay:Math.random()*220,
-          onComplete:()=>p.destroy()
-        });
-      }
-    }
-
-    // stage 7: pulse rings
-    if(stage===7){
-      for(let i=0;i<4;i++){
-        const r=this.add.circle(cx,cy,18).setStrokeStyle(4,col,.92).setDepth(112);
-        this.tweens.add({
-          targets:r,scale:3.2+i*1.5,alpha:0,
-          duration:470+i*100,delay:i*55,
-          onComplete:()=>r.destroy()
-        });
-      }
-    }
-
-    // stage 8: shard burst
-    if(stage===8){
-      for(let i=0;i<22;i++){
-        const a=Math.random()*Math.PI*2;
-        const s=this.add.triangle(cx,cy,0,0,5,20,10,0,col,.82)
-          .setAngle(Phaser.Math.RadToDeg(a)+90).setDepth(112);
-        this.tweens.add({
-          targets:s,
-          x:cx+Math.cos(a)*(90+Math.random()*130),
-          y:cy+Math.sin(a)*(90+Math.random()*130),
-          alpha:0,scale:.35,
-          duration:560+Math.random()*240,
-          onComplete:()=>s.destroy()
-        });
-      }
-    }
-
-    // stage 9: triple lightning
-    if(stage===9){
-      const lg=this.add.graphics().setDepth(114);
-      lg.lineStyle(4,col,1);
-      for(const off of [-70,0,70]){
-        lg.beginPath();
-        let px=cx+off;
-        lg.moveTo(px,this.by-10);
-        for(let i=1;i<=8;i++){
-          px+=(Math.random()-.5)*28;
-          lg.lineTo(px,this.by+i*(CFG.boardH/8));
-        }
-        lg.strokePath();
-      }
-      this.tweens.add({targets:lg,alpha:0,duration:340,onComplete:()=>lg.destroy()});
-    }
-
-    // stage 10: final gold burst + ring
-    if(stage===10){
-      for(let i=0;i<34;i++){
-        const a=i/34*Math.PI*2;
-        const p=this.add.circle(cx,cy,1.8+Math.random()*2.4,0xffd54f,.98).setDepth(114);
-        this.tweens.add({
-          targets:p,
-          x:cx+Math.cos(a)*(125+Math.random()*115),
-          y:cy+Math.sin(a)*(125+Math.random()*115),
-          alpha:0,scale:.25,
-          duration:650+Math.random()*260,
-          onComplete:()=>p.destroy()
-        });
-      }
-      const ring=this.add.circle(cx,cy,28).setStrokeStyle(7,0xffd54f,.98).setDepth(113);
-      this.tweens.add({targets:ring,scale:7,alpha:0,duration:640,onComplete:()=>ring.destroy()});
-    }
-
-    const label=this.add.text(cx,this.by+28,`STAGE ${stage}`,{
+    const label=this.add.text(cx,this.by+32,`STAGE ${stage}`,{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:stage===10?'34px':'28px',
+      fontSize:stage===10?'34px':'29px',
       fontStyle:'bold',
-      color:stage===10?'#ffd54f':'#ffffff',
-      stroke:'#000000',strokeThickness:7
-    }).setOrigin(.5).setDepth(116).setScale(.55).setAlpha(0);
+      color:P.label,
+      stroke:'#000000',
+      strokeThickness:7
+    }).setOrigin(.5).setDepth(118).setAlpha(0).setScale(.52);
+
+    const sub=this.add.text(cx,this.by+61,P.sub,{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'10px',
+      fontStyle:'bold',
+      color:'#d8e7ef',
+      letterSpacing:2
+    }).setOrigin(.5).setDepth(118).setAlpha(0);
 
     this.tweens.add({
-      targets:label,alpha:1,scale:1,
-      duration:230,ease:'Back.easeOut',
-      hold:380,yoyo:true,
+      targets:plate,
+      alpha:1,scaleX:1,scaleY:1,
+      duration:190,ease:'Back.easeOut',
+      hold:500,
+      yoyo:true,
+      onComplete:()=>plate.destroy()
+    });
+    this.tweens.add({
+      targets:label,
+      alpha:1,scale:1,
+      duration:220,ease:'Back.easeOut',
+      hold:420,yoyo:true,
       onComplete:()=>label.destroy()
     });
+    this.tweens.add({
+      targets:sub,
+      alpha:1,
+      duration:210,delay:80,
+      hold:360,yoyo:true,
+      onComplete:()=>sub.destroy()
+    });
+
+    // persistent low-intensity ambience after the entry blast
+    this.time.delayedCall(380,()=>this.startStageAmbientFX(stage));
   }
 
   enterStage(newStage){
+    this.clearStageAmbientFX();
     this.stageCutin=true;
     this.state='STAGE_CUTIN';
     const clearedStage=newStage-1;
@@ -1659,6 +1882,7 @@ class GameScene extends Phaser.Scene{
     if(this.ended)return;
     this.ended=true;
     this.state='GAME_OVER';
+    this.clearStageAmbientFX();
 
     // Music must stop immediately.
     AUDIO.pause();

@@ -1,24 +1,12 @@
-NEKO BLOCKS DX 5.6
+NEKO BLOCKS DX 5.7 — FX OVERDRIVE
 
-FULL game.js rebuild of the two systems that failed to reflect previously.
-
-- Stage 1-10 each have a distinct arrival effect:
-  1 rings
-  2 speed lines
-  3 radial sparks
-  4 slash beams
-  5 shockwave
-  6 meteor shower
-  7 pulse rings
-  8 shard burst
-  9 triple lightning
-  10 gold final burst
-
-- Game Over:
-  BGM stops immediately.
-  A stronger two-hit "チャン！チャン！" jingle plays.
-  Then a short Stage 10 demo runs.
-  RETRY appears after the demo.
-
-- Title visibly shows BUILD 5.6 • STAGE FX REBUILD.
-- Cache bust: 560.
+Main change:
+- Rebuilt the full stage-effects subsystem inside game.js.
+- All 10 stage-entry effects now use multi-layer final-stage-class effects.
+- Every stage combines shockwaves, radial particles, edge rays and a dedicated stage motif.
+- Higher stages include lightning, comet rain, shards, confetti and stronger camera effects.
+- Each stage also gets subtle persistent edge ambience while playing.
+- Stage 10 remains strongest, but Stages 1–9 are now much closer to its spectacle level.
+- Old stage ambience is cleaned up on stage changes and GAME OVER.
+- Title build marker: BUILD 5.7 • FX OVERDRIVE
+- Cache bust: 570
