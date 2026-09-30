@@ -1,21 +1,13 @@
-NEKO BLOCKS DX 5.11 — TOUCH COMBO
+NEKO BLOCKS DX 5.12 — HUD & PAUSE
 
-Major rebuild:
-- Restored and strengthened block-clear arcade sound.
-- Added spoken combo calls: コンボ！ / 2コンボ！ / 3コンボ！ ...
-  using browser Japanese speech synthesis with synth fallback.
-- Added speech-bubble combo popups.
-- Removed BGM track-name display.
-- NEXT queue now shows 3 upcoming pieces.
-- Removed old on-screen control buttons.
-- Direct board controls:
-  tap = rotate
-  drag left/right = move
-  drag downward = drop
-- Gravity freezes briefly while rotating.
-- Removed 天才 / 神域 etc. blocking stage cut-ins.
-- Stage changes are now seamless with a short STAGE notice + effects.
-- Repositioned/reduced title cats so they do not overlap the title.
+- Added crisp click sound on successful rotation.
+- NEXT ×3 previews are about 150% larger than 5.11.
+- NEXT previews use three separate horizontal slots, so they do not overlap.
+- SCORE now has a strong framed arcade HUD with larger digits.
+- Added a visible pause button in the upper-right.
+- Pause button changes from Ⅱ to ▶ while paused.
+- Touch controls remain: tap rotate / drag move / drag down.
 - Secret stage select remains available.
-- Cache: 5110
-- Build: BUILD 5.11 • TOUCH COMBO
+
+BUILD 5.12 • HUD & PAUSE
+Cache: 5120

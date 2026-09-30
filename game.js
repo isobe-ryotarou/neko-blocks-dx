@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.11
+  NEKO BLOCKS DX 5.12
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -185,6 +185,10 @@ class AudioEngine{
   }
 
   land(){this.tone(125,.045,.017,'sine')}
+  rotateClick(){
+    this.tone(980,.032,.038,'square');
+    this.tone(620,.045,.024,'triangle',.018);
+  }
   meow(){this.tone(540,.06,.018);this.tone(680,.08,.016,'triangle',.045)}
   bark(){this.tone(170,.055,.023,'square');this.tone(125,.08,.020,'square',.04)}
   clear(chain){
@@ -746,7 +750,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.11 • TOUCH COMBO',{
+    this.add.text(w/2,575,'BUILD 5.12 • HUD & PAUSE',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -925,22 +929,49 @@ class GameScene extends Phaser.Scene{
     this.activeLayer=this.add.container(0,0).setDepth(6);
     this.nextLayer=this.add.container(0,0).setDepth(20);
 
-    this.scoreT=this.add.text(12,10,'SCORE 0',{
-      fontFamily:'Arial Black, sans-serif',fontSize:'16px',color:'#14232d'
-    }).setDepth(20);
+    // 5.12: stronger score HUD
+    this.scoreBox=this.add.rectangle(68,29,124,50,0x071019,.94)
+      .setStrokeStyle(2,0x56b4e9,.98).setDepth(19);
 
-    this.clearT=this.add.text(12,34,'CLEAR 0',{
-      fontFamily:'Arial Black, sans-serif',fontSize:'14px',color:'#14232d'
-    }).setDepth(20);
-
-    this.stageT=this.add.text(this.scale.width-12,10,'STAGE 1',{
-      fontFamily:'Arial Black, sans-serif',fontSize:'16px',color:'#14232d'
-    }).setOrigin(1,0).setDepth(20);
-
-    this.nextT=this.add.text(this.scale.width-12,72,'NEXT ×3',{
+    this.scoreLabel=this.add.text(14,8,'SCORE',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'10px',fontStyle:'bold',color:'#14232d'
+      fontSize:'10px',fontStyle:'bold',color:'#8fdcff'
+    }).setDepth(20);
+
+    this.scoreT=this.add.text(14,20,'0',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'23px',fontStyle:'bold',
+      color:'#ffffff',stroke:'#000000',strokeThickness:4
+    }).setDepth(20);
+
+    this.clearT=this.add.text(14,58,'CLEAR 0',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'12px',fontStyle:'bold',color:'#14232d'
+    }).setDepth(20);
+
+    this.stageT=this.add.text(this.scale.width-12,8,'STAGE 1',{
+      fontFamily:'Arial Black, sans-serif',fontSize:'15px',color:'#14232d'
     }).setOrigin(1,0).setDepth(20);
+
+    this.pauseBtn=this.add.text(this.scale.width-12,34,'Ⅱ',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'17px',fontStyle:'bold',
+      color:'#ffffff',backgroundColor:'#071019',
+      padding:{left:10,right:10,top:5,bottom:5}
+    }).setOrigin(1,0).setDepth(35).setInteractive({useHandCursor:true});
+
+    this.pauseBtn.on('pointerdown',()=>{
+      AUDIO.userGestureResume();
+      this.pauseBtn.setScale(.94).setAlpha(.72);
+      this.togglePause();
+    });
+    this.pauseBtn.on('pointerup',()=>this.pauseBtn.setScale(1).setAlpha(1));
+    this.pauseBtn.on('pointerout',()=>this.pauseBtn.setScale(1).setAlpha(1));
+
+    this.nextT=this.add.text(158,57,'NEXT ×3',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'9px',fontStyle:'bold',color:'#14232d'
+    }).setOrigin(.5,0).setDepth(20);
 
     this.chainT=this.add.text(this.scale.width/2,this.by+155,'',{
       fontFamily:'Arial Black, sans-serif',
@@ -1178,6 +1209,7 @@ class GameScene extends Phaser.Scene{
 
       if(!this.board.collides(test,0,0,rotated)){
         this.piece=test;
+        AUDIO.rotateClick();
         this.redraw();
         return;
       }
@@ -1982,7 +2014,16 @@ class GameScene extends Phaser.Scene{
 
     this.pausedByUser=!this.pausedByUser;
     this.pauseShade.setVisible(this.pausedByUser);
-    this.pauseText.setVisible(this.pausedByUser);
+    this.pauseText
+      .setVisible(this.pausedByUser)
+      .setText(this.pausedByUser?'PAUSE\n\n▶ で再開':'PAUSE');
+
+    if(this.pauseBtn){
+      this.pauseBtn.setText(this.pausedByUser?'▶':'Ⅱ');
+      this.pauseBtn.setBackgroundColor(this.pausedByUser?'#f0e442':'#071019');
+      this.pauseBtn.setColor(this.pausedByUser?'#071019':'#ffffff');
+      this.pauseBtn.setScale(1).setAlpha(1);
+    }
 
     if(this.pausedByUser)AUDIO.pause();
     else AUDIO.resume();
@@ -2066,28 +2107,28 @@ class GameScene extends Phaser.Scene{
     this.nextLayer.removeAll(true);
     if(!this.nextQueue || !this.nextQueue.length)return;
 
-    const baseX=this.scale.width-39;
-    const baseY=105;
+    // 5.12: 150% larger preview tiles in three independent slots.
+    const centers=[205,260,315];
+    const centerY=70;
 
     this.nextQueue.slice(0,3).forEach((piece,index)=>{
-      const size=index===0?9:8;
-      const gap=50;
-      const yy=baseY+index*gap;
+      const cellSize=index===0?13:12;
+      const cx=centers[index];
+      const cy=centerY;
 
-      // subtle slot
-      const slot=this.add.rectangle(baseX,yy+13,42,42,0x071019,.12)
-        .setStrokeStyle(1,0x6d7c86,.22);
+      const slot=this.add.rectangle(cx,cy,50,50,0x071019,.10)
+        .setStrokeStyle(index===0?2:1,index===0?0x56b4e9:0x6d7c86,index===0?.48:.24);
       this.nextLayer.add(slot);
 
       const mw=piece.matrix[0].length;
       const mh=piece.matrix.length;
-      const ox=baseX-(mw*size)/2+size/2;
-      const oy=yy+13-(mh*size)/2+size/2;
+      const ox=cx-(mw*cellSize)/2+cellSize/2;
+      const oy=cy-(mh*cellSize)/2+cellSize/2;
 
       occupied(piece.matrix,(x,y,colorIdx)=>{
         const key=piece.dog?'dog':'cat'+colorIdx;
-        const sp=this.add.image(ox+x*size,oy+y*size,key)
-          .setDisplaySize(size-1,size-1);
+        const sp=this.add.image(ox+x*cellSize,oy+y*cellSize,key)
+          .setDisplaySize(cellSize-1,cellSize-1);
         this.nextLayer.add(sp);
       });
     });
@@ -2131,7 +2172,7 @@ class GameScene extends Phaser.Scene{
   }
 
   updateHUD(){
-    this.scoreT.setText('SCORE '+this.score);
+    this.scoreT.setText(this.score.toLocaleString('ja-JP'));
     this.clearT.setText('CLEAR '+this.clears);
     this.stageT.setText('STAGE '+this.stage);
 
