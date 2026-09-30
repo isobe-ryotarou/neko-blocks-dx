@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.22
+  NEKO BLOCKS DX 5.23
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -768,7 +768,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.22 • STOCK STAR FIX',{
+    this.add.text(w/2,575,'BUILD 5.23 • SHELL REBUILD',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -1016,18 +1016,50 @@ class GameScene extends Phaser.Scene{
     return c;
   }
 
+  buildCabinetShell(){
+    const w=this.scale.width;
+    const h=this.scale.height;
+
+    // Full-screen arcade cabinet background: eliminates dead empty margins.
+    this.shellBg=this.add.rectangle(w/2,h/2,w,h,0x08131a,1).setDepth(-50);
+
+    // vertical side panels
+    this.shellLeft=this.add.rectangle(14,h/2,28,h,0x101f29,.98).setDepth(-48);
+    this.shellRight=this.add.rectangle(w-14,h/2,28,h,0x101f29,.98).setDepth(-48);
+
+    // subtle metallic rails
+    this.add.rectangle(29,h/2,3,h,0xffffff,.08).setDepth(-47);
+    this.add.rectangle(w-29,h/2,3,h,0x000000,.38).setDepth(-47);
+
+    // top decorative strip
+    this.shellTop=this.add.rectangle(w/2,4,w,8,0x1b3948,.98)
+      .setStrokeStyle(1,0x56b4e9,.45).setDepth(-46);
+
+    // bottom decorative strip
+    this.shellBottom=this.add.rectangle(w/2,h-4,w,8,0x071019,.98)
+      .setStrokeStyle(1,0xffd54f,.25).setDepth(-46);
+
+    // faint corner bolts/details
+    const bolts=[[15,16],[w-15,16],[15,h-16],[w-15,h-16]];
+    bolts.forEach(([x,y])=>{
+      this.add.circle(x,y,4,0x607d8b,.8)
+        .setStrokeStyle(1,0xffffff,.18)
+        .setDepth(-45);
+    });
+  }
+
   buildUI(){
+    this.buildCabinetShell();
+
     // ============================================================
-    // 5.20 LAYOUT BREAKTHROUGH
-    // Canvas is 420px wide.
-    // Board remains centered. Right side gets a real control lane.
-    // Top HUD uses a fixed alignment grid.
+    // 5.23 GRID HUD
+    // All top boxes share exact edges. No overlap, no random gaps.
     // ============================================================
 
     this.boardEmboss=this.addEmbossFrame(
       this.bx+CFG.boardW/2,
       this.by+CFG.boardH/2,
-      CFG.boardW+12,CFG.boardH+12,
+      CFG.boardW+10,CFG.boardH+10,
       0x16242d,0x56b4e9,0
     );
 
@@ -1050,41 +1082,51 @@ class GameScene extends Phaser.Scene{
     this.activeLayer=this.add.container(0,0).setDepth(6);
     this.nextLayer=this.add.container(0,0).setDepth(20);
 
-    // ---------- TOP HUD GRID ----------
-    const topY=30;
-    const topH=50;
+    // ---------- TOP GRID ----------
+    // Exact boundaries:
+    // x=20..160 SCORE
+    // x=160..300 STAGE
+    // x=300..400 PAUSE
+    const y0=30;
+    const h0=52;
 
-    // Exact aligned geometry:
-    // SCORE  x=80  w=140
-    // STAGE  x=230 w=140
-    // PAUSE  x=365 w=70
-    this.scoreCard=this.addEmbossFrame(80,topY,140,topH,0x061018,0xffd54f,18);
-    this.stageCard=this.addEmbossFrame(230,topY,140,topH,0x061018,0x56b4e9,18);
-    this.pauseFrame=this.addEmbossFrame(365,topY,70,topH,0x061018,0xf0e442,18);
+    this.scoreCard=this.add.rectangle(90,y0,140,h0,0x081018,.98)
+      .setStrokeStyle(2,0xffd54f,.95).setDepth(18);
+    this.stageCard=this.add.rectangle(230,y0,140,h0,0x081018,.98)
+      .setStrokeStyle(2,0x56b4e9,.95).setDepth(18);
+    this.pauseCard=this.add.rectangle(350,y0,100,h0,0x081018,.98)
+      .setStrokeStyle(2,0xf0e442,.95).setDepth(18);
 
-    this.scoreLabel=this.add.text(21,11,'SCORE',{
+    // shared bevel highlights; exactly aligned edges
+    [
+      [90,20,132,2],[230,20,132,2],[350,20,92,2]
+    ].forEach(([x,y,w,h])=>this.add.rectangle(x,y,w,h,0xffffff,.18).setDepth(19));
+
+    [
+      [90,40,132,3],[230,40,132,3],[350,40,92,3]
+    ].forEach(([x,y,w,h])=>this.add.rectangle(x,y,w,h,0x000000,.40).setDepth(19));
+
+    this.scoreLabel=this.add.text(28,10,'SCORE',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'10px',fontStyle:'bold',color:'#ffe88a'
     }).setDepth(22);
-
-    this.scoreT=this.add.text(21,23,'0',{
+    this.scoreT=this.add.text(28,22,'0',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'21px',fontStyle:'bold',
       color:'#ffffff',stroke:'#000000',strokeThickness:4
     }).setDepth(22);
 
-    this.stageLabel=this.add.text(171,11,'STAGE',{
+    this.stageLabel=this.add.text(168,10,'STAGE',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'10px',fontStyle:'bold',color:'#91e4ff'
     }).setDepth(22);
-
-    this.stageT=this.add.text(171,23,'1',{
+    this.stageT=this.add.text(168,22,'1',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'21px',fontStyle:'bold',
       color:'#ffffff',stroke:'#000000',strokeThickness:4
     }).setDepth(22);
 
-    this.pauseBtn=this.add.text(365,topY,'Ⅱ',{
+    this.pauseBtn=this.add.text(350,y0,'Ⅱ',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'20px',fontStyle:'bold',color:'#ffffff'
     }).setOrigin(.5).setDepth(35).setInteractive({useHandCursor:true});
@@ -1097,15 +1139,99 @@ class GameScene extends Phaser.Scene{
     this.pauseBtn.on('pointerup',()=>this.pauseBtn.setScale(1).setAlpha(1));
     this.pauseBtn.on('pointerout',()=>this.pauseBtn.setScale(1).setAlpha(1));
 
-    // ---------- NEXT ROW ----------
+    // ---------- NEXT GRID ----------
     const nextY=88;
-    this.nextHeaderFrame=this.addEmbossFrame(66,nextY,112,36,0x09141a,0xffd54f,18);
-    this.nextT=this.add.text(66,nextY,'次  NEXT',{
+    this.nextHeader=this.add.rectangle(72,nextY,104,38,0x081018,.98)
+      .setStrokeStyle(2,0xffd54f,.92).setDepth(18);
+    this.nextT=this.add.text(72,nextY,'次  NEXT',{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
       fontSize:'13px',fontStyle:'bold',color:'#fff0a0'
     }).setOrigin(.5).setDepth(22);
 
-    this.scoreRuleHint=this.add.text(this.scale.width/2,116,'得点：消去数 × 10 × コンボ数',{
+    // ---------- RESCUE STOCK ----------
+    this.rescueStockPanel=this.add.rectangle(390,194,54,148,0x081018,.98)
+      .setStrokeStyle(2,0xffd54f,.90).setDepth(28);
+
+    this.rescueStockLabel=this.add.text(390,138,'STAR',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'10px',fontStyle:'bold',color:'#fff1a6'
+    }).setOrigin(.5).setDepth(33);
+
+    this.rescueStockCount=this.add.text(390,154,'0/3',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'11px',fontStyle:'bold',color:'#d8e8f0'
+    }).setOrigin(.5).setDepth(33);
+
+    this.rescueStockSlots=[];
+    [180,214,248].forEach((sy,index)=>{
+      const bg=this.add.rectangle(390,sy,44,28,0x0b151b,.96)
+        .setStrokeStyle(1,0x6b7f8b,.35)
+        .setDepth(32);
+      const icon=this.add.text(390,sy,'☆',{fontSize:'22px'})
+        .setOrigin(.5).setAlpha(.30).setDepth(33);
+      const hit=this.add.zone(390,sy,54,32)
+        .setDepth(41).setInteractive({useHandCursor:true});
+      hit.on('pointerdown',()=>{
+        if(index>=this.rescueStarStock)return;
+        icon.setScale(.70);
+        this.time.delayedCall(90,()=>icon.setScale(1));
+        this.useRescueStock();
+      });
+      this.rescueStockSlots.push({bg,icon,hit});
+    });
+    this.updateRescueStockUI();
+
+    // ---------- AUTO DROP PANEL ----------
+    const dropX=390;
+    const dropY=430;
+
+    this.dropPanel=this.add.rectangle(dropX,dropY,54,218,0x071019,.98)
+      .setStrokeStyle(2,0x56b4e9,.95).setDepth(30);
+
+    this.dropModeTitle=this.add.text(dropX,dropY-68,'AUTO',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'13px',fontStyle:'bold',color:'#ffffff'
+    }).setOrigin(.5).setDepth(33);
+
+    this.dropModeTitle2=this.add.text(dropX,dropY-48,'DROP',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'13px',fontStyle:'bold',color:'#ffffff'
+    }).setOrigin(.5).setDepth(33);
+
+    this.dropArrow=this.add.text(dropX,dropY-6,'▼',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'28px',fontStyle:'bold',color:'#56b4e9'
+    }).setOrigin(.5).setDepth(33);
+
+    this.dropState=this.add.text(dropX,dropY+43,'OFF',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'15px',fontStyle:'bold',color:'#9fb8c7'
+    }).setOrigin(.5).setDepth(33);
+
+    this.dropModeLed=this.add.circle(dropX,dropY+76,8,0x56636b,1)
+      .setStrokeStyle(2,0xffffff,.22).setDepth(33);
+
+    this.dropHit=this.add.zone(dropX,dropY,60,224)
+      .setDepth(40).setInteractive({useHandCursor:true});
+
+    const refreshDropMode=()=>{
+      const on=this.instantDropMode;
+      this.dropState.setText(on?'ON':'OFF');
+      this.dropState.setColor(on?'#fff3a0':'#9fb8c7');
+      this.dropArrow.setColor(on?'#f0e442':'#56b4e9');
+      this.dropModeLed.setFillStyle(on?0xf0e442:0x56636b,1);
+      this.dropPanel.setStrokeStyle(2,on?0xf0e442:0x56b4e9,on?1:.95);
+    };
+
+    this.dropHit.on('pointerdown',()=>{
+      AUDIO.userGestureResume();
+      this.instantDropMode=!this.instantDropMode;
+      refreshDropMode();
+    });
+    refreshDropMode();
+
+    // Score-rule hint: temporary, not part of permanent layout.
+    this.scoreRuleHint=this.add.text(this.scale.width/2,115,'得点は「消した時だけ」',{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
       fontSize:'10px',fontStyle:'bold',
       color:'#20323d',
@@ -1115,114 +1241,10 @@ class GameScene extends Phaser.Scene{
 
     this.tweens.add({
       targets:this.scoreRuleHint,
-      alpha:1,duration:260,delay:450,
-      hold:1450,yoyo:true,
+      alpha:1,duration:250,delay:500,
+      hold:1400,yoyo:true,
       onComplete:()=>this.scoreRuleHint.setVisible(false)
     });
-
-    // ---------- RESCUE STAR STOCK ----------
-    this.rescueStockFrame=this.addEmbossFrame(390,205,58,150,0x071019,0xffd54f,28);
-    this.rescueStockLabel=this.add.text(390,146,'STAR',{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'10px',fontStyle:'bold',
-      color:'#fff1a6'
-    }).setOrigin(.5).setDepth(33);
-
-    this.rescueStockCount=this.add.text(390,162,'0/3',{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'11px',fontStyle:'bold',
-      color:'#d8e8f0'
-    }).setOrigin(.5).setDepth(33);
-
-    this.rescueStockSlots=[];
-    [188,220,252].forEach((sy,index)=>{
-      const bg=this.add.rectangle(390,sy,44,28,0x0b151b,.96)
-        .setStrokeStyle(1,0x6b7f8b,.35)
-        .setDepth(32);
-
-      const icon=this.add.text(390,sy,'☆',{fontSize:'22px'})
-        .setOrigin(.5).setAlpha(.30).setDepth(33);
-
-      const hit=this.add.zone(390,sy,54,34)
-        .setDepth(41)
-        .setInteractive({useHandCursor:true});
-
-      hit.on('pointerdown',()=>{
-        if(index>=this.rescueStarStock)return;
-        icon.setScale(.70);
-        this.time.delayedCall(90,()=>icon.setScale(1));
-        this.useRescueStock();
-      });
-
-      this.rescueStockSlots.push({bg,icon,hit});
-    });
-    this.updateRescueStockUI();
-
-    // ---------- REAL RIGHT-SIDE AUTO DROP CONTROL ----------
-    const dropX=390;
-    const dropY=this.by+CFG.boardH*.58;
-
-    // Visual panel
-    this.dropPanelShadow=this.add.rectangle(dropX+3,dropY+5,56,230,0x000000,.34)
-      .setDepth(29);
-    this.dropPanel=this.add.rectangle(dropX,dropY,54,226,0x071019,.98)
-      .setStrokeStyle(3,0x56b4e9,.95)
-      .setDepth(30);
-
-    this.dropPanelTop=this.add.rectangle(dropX,dropY-109,44,3,0xffffff,.24).setDepth(31);
-    this.dropPanelLeft=this.add.rectangle(dropX-25,dropY,3,208,0xffffff,.15).setDepth(31);
-    this.dropPanelBottom=this.add.rectangle(dropX,dropY+109,44,4,0x000000,.48).setDepth(31);
-    this.dropPanelRight=this.add.rectangle(dropX+25,dropY,4,208,0x000000,.44).setDepth(31);
-
-    this.dropModeTitle=this.add.text(dropX,dropY-72,'AUTO',{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'14px',fontStyle:'bold',
-      color:'#ffffff'
-    }).setOrigin(.5).setDepth(33);
-
-    this.dropModeTitle2=this.add.text(dropX,dropY-50,'DROP',{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'14px',fontStyle:'bold',
-      color:'#ffffff'
-    }).setOrigin(.5).setDepth(33);
-
-    this.dropArrow=this.add.text(dropX,dropY-8,'▼',{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'28px',fontStyle:'bold',
-      color:'#56b4e9'
-    }).setOrigin(.5).setDepth(33);
-
-    this.dropState=this.add.text(dropX,dropY+45,'OFF',{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'15px',fontStyle:'bold',
-      color:'#9fb8c7'
-    }).setOrigin(.5).setDepth(33);
-
-    this.dropModeLed=this.add.circle(dropX,dropY+78,8,0x56636b,1)
-      .setStrokeStyle(2,0xffffff,.22)
-      .setDepth(33);
-
-    // Dedicated invisible hit zone. This is independent of text bounds.
-    this.dropHit=this.add.zone(dropX,dropY,60,236)
-      .setDepth(40)
-      .setInteractive({useHandCursor:true});
-
-    const refreshDropMode=()=>{
-      const on=this.instantDropMode;
-      this.dropState.setText(on?'ON':'OFF');
-      this.dropState.setColor(on?'#fff3a0':'#9fb8c7');
-      this.dropArrow.setColor(on?'#f0e442':'#56b4e9');
-      this.dropModeLed.setFillStyle(on?0xf0e442:0x56636b,1);
-      this.dropPanel.setStrokeStyle(3,on?0xf0e442:0x56b4e9,on?1:.95);
-    };
-
-    this.dropHit.on('pointerdown',()=>{
-      AUDIO.userGestureResume();
-      this.instantDropMode=!this.instantDropMode;
-      this.cameras.main.flash(70,this.instantDropMode?255:120,this.instantDropMode?220:190,80);
-      refreshDropMode();
-    });
-    refreshDropMode();
 
     this.chainT=this.add.text(this.scale.width/2,this.by+155,'',{
       fontFamily:'Arial Black, sans-serif',
@@ -1359,7 +1381,6 @@ class GameScene extends Phaser.Scene{
           const gy=this.board.ghostY(this.piece);
           const moved=Math.max(0,gy-this.piece.y);
           this.piece.y=gy;
-          this.score+=moved;
           this.dropAccum=0;
           d.lastY=p.y;
           d.moved=true;
@@ -1372,7 +1393,6 @@ class GameScene extends Phaser.Scene{
         while(steps-->0 && this.canControl()){
           if(!this.board.collides(this.piece,0,1)){
             this.piece.y++;
-            this.score++;
             this.dropAccum=0;
           }else{
             this.beginLock(false);
@@ -1443,7 +1463,6 @@ class GameScene extends Phaser.Scene{
 
       if(!this.board.collides(this.piece,0,1)){
         this.piece.y++;
-        if(this.softDrop)this.score++;
         this.redraw();
       }else{
         this.beginLock(false);
@@ -1520,7 +1539,6 @@ class GameScene extends Phaser.Scene{
       d++;
     }
 
-    this.score+=d*2;
     this.redraw();
     this.beginLock(true);
   }
@@ -2690,19 +2708,11 @@ class GameScene extends Phaser.Scene{
       const slotH=isFirst?62:58;
       const accent=isFirst?0xffd54f:0x56b4e9;
 
-      this.nextLayer.add(
-        this.add.rectangle(cx+3,cy+4,slotW+5,slotH+5,0x000000,.24)
-      );
-
-      const outer=this.add.rectangle(cx,cy,slotW+2,slotH+2,0x071019,.98)
+      const slot=this.add.rectangle(cx,cy,slotW,slotH,0x081018,.98)
         .setStrokeStyle(2,accent,isFirst?1:.55);
-      const top=this.add.rectangle(cx,cy-slotH/2+2,slotW-10,2,0xffffff,.24);
-      const left=this.add.rectangle(cx-slotW/2+2,cy,2,slotH-10,0xffffff,.16);
-      const bottom=this.add.rectangle(cx,cy+slotH/2-2,slotW-10,3,0x000000,.44);
-      const right=this.add.rectangle(cx+slotW/2-2,cy,3,slotH-10,0x000000,.40);
-      this.nextLayer.add([outer,top,left,bottom,right]);
+      this.nextLayer.add(slot);
 
-      const badge=this.add.text(cx,cy-slotH/2-10,isFirst?'次':'NEXT '+(index+1),{
+      const badge=this.add.text(cx,cy-slotH/2-9,isFirst?'次':'NEXT '+(index+1),{
         fontFamily:'Arial Black, sans-serif',
         fontSize:isFirst?'10px':'8px',
         fontStyle:'bold',

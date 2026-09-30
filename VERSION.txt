@@ -1,13 +1,14 @@
-NEKO BLOCKS DX 5.22 — STOCK STAR FIX
+NEKO BLOCKS DX 5.23 — SHELL REBUILD
 
-Fixes:
-- Shooting star now moves as one container.
-- Added large 80×80 transparent tap area around the moving star.
-- Star icon, glow and hit zone are all tappable.
-- Catching a star now always increments stock immediately.
-- Added fly-to-stock animation and "STOCK 1/3" confirmation.
-- Stock slot tap zones enlarged.
-- Stock cleanup updated for the new carrier container.
+Major fixes:
+- Score no longer increases from dragging, soft-drop distance or hard-drop distance.
+- Score increases only when matching blocks are actually cleared.
+- Top HUD rebuilt as an exact edge-aligned grid.
+- Frames no longer overlap each other.
+- Rescue stock and AUTO DROP panels are separated into fixed right-side modules.
+- Added a full-screen arcade cabinet shell/background to eliminate ugly empty margins.
+- Added side rails, top/bottom metallic strips and corner details.
+- NEXT area simplified into a clean aligned grid.
 
-BUILD 5.22 • STOCK STAR FIX
-Cache: 5220
+BUILD 5.23 • SHELL REBUILD
+Cache: 5230
