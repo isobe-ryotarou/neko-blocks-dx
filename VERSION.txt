@@ -1,12 +1,18 @@
-NEKO BLOCKS DX 5.24 — SOFTAZIO BRANDING
+NEKO BLOCKS DX 5.25 — STABLE
 
-- Added SOFTAZIO to title screen.
-- Added SOFTWARE FROM A TO Z tagline.
-- Added PRODUCT 001 designation.
-- Added subtle SOFTAZIO / PRODUCT 001 gameplay signature.
-- Added SOFTAZIO branding to game over.
-- Updated browser title/meta.
-- Added SOFTAZIO_BRAND.txt.
+Status:
+Stable test-launch build.
 
-BUILD 5.24 • SOFTAZIO BRANDING
-Cache: 5240
+Policy:
+- No new gameplay features added in this release.
+- Based directly on 5.24 SOFTAZIO BRANDING.
+- Gameplay, scoring, combo, stock-star, AUTO DROP, pause, NEXT and touch controls are frozen.
+- This build is the baseline for the next phase: website / analytics / monetization preparation.
+
+Brand:
+SOFTAZIO
+SOFTWARE FROM A TO Z
+PRODUCT 001 — NEKO BLOCKS DX
+
+BUILD 5.25 • STABLE
+Cache: 5250

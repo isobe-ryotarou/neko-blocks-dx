@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.24
+  NEKO BLOCKS DX 5.25
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -786,7 +786,7 @@ class TitleScene extends Phaser.Scene{
       color:'#f0e442'
     }).setOrigin(.5).setDepth(6);
 
-    this.add.text(w/2,582,'BUILD 5.24 • SOFTAZIO BRANDING',{
+    this.add.text(w/2,582,'BUILD 5.25 • STABLE',{
       fontFamily:'Arial Black, sans-serif',fontSize:'10px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
