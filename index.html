@@ -2,25 +2,65 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-  <meta name="theme-color" content="#eef3f7">
-  <title>NEKO BLOCKS DX — Product 001 by SOFTAZIO</title>
-  <link rel="stylesheet" href="./style.css?v=5250">
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
-  <meta name="description" content="NEKO BLOCKS DX — Product 001 by SOFTAZIO. A browser puzzle game.">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#071019">
+  <meta name="description" content="SOFTAZIO — Software from A to Z. Product 001: NEKO BLOCKS DX.">
+  <title>SOFTAZIO — Software from A to Z</title>
+  <link rel="stylesheet" href="site.css?v=1">
 </head>
 <body>
-  <div id="game"></div>
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="SOFTAZIO home">
+      <span class="brand-name">SOFTAZIO</span>
+      <span class="brand-tag">SOFTWARE FROM A TO Z</span>
+    </a>
+    <nav>
+      <a href="#product">PRODUCT 001</a>
+      <a href="how-to-play.html">遊び方</a>
+      <a href="privacy.html">PRIVACY</a>
+      <a href="contact.html">CONTACT</a>
+    </nav>
+  </header>
 
-  <div id="controls" aria-label="game controls">
-    <button id="left" class="ctrl">◀</button>
-    <button id="right" class="ctrl">▶</button>
-    <button id="rotate" class="ctrl">↻</button>
-    <button id="down" class="ctrl">▼</button>
-    <button id="drop" class="ctrl wide">DROP</button>
-    <button id="pause" class="ctrl">Ⅱ</button>
-  </div>
+  <main>
+    <section class="hero">
+      <div class="eyebrow">SOFTAZIO / PRODUCT 001</div>
+      <h1>NEKO BLOCKS DX</h1>
+      <p class="lead">5色のネコブロックをつなげて消す、スマホ向けブラウザパズル。</p>
+      <div class="cta-row">
+        <a class="btn primary" href="game/index.html">PLAY NOW</a>
+        <a class="btn secondary" href="how-to-play.html">遊び方を見る</a>
+      </div>
+      <div class="status">TEST LAUNCH / STABLE BUILD 5.25</div>
+    </section>
 
-  <script src="./game.js?v=5250"></script>
+    <section id="product" class="product-card">
+      <div>
+        <div class="eyebrow">PRODUCT 001</div>
+        <h2>NEKO BLOCKS DX</h2>
+        <p>タップで回転、ドラッグで移動。2コンボで流れるお助けスターを捕まえてストックし、ピンチの時に使えます。</p>
+      </div>
+      <div class="feature-grid">
+        <div><strong>5 COLORS</strong><span>色をつなげて消去</span></div>
+        <div><strong>COMBO</strong><span>連鎖で得点アップ</span></div>
+        <div><strong>AUTO DROP</strong><span>一気に落下できる切替</span></div>
+        <div><strong>RESCUE STAR</strong><span>最大3個までストック</span></div>
+      </div>
+    </section>
+
+    <section class="roadmap">
+      <div class="eyebrow">SOFTAZIO</div>
+      <h2>小さく作り、育て、次へ。</h2>
+      <p>SOFTAZIOは、ゲームだけに限らず、学習・業務・生活の中の「不」をソフトウェアで減らすプロダクトスタジオを目指します。</p>
+    </section>
+  </main>
+
+  <footer>
+    <div>© 2026 SOFTAZIO</div>
+    <div class="footer-links">
+      <a href="privacy.html">Privacy</a>
+      <a href="contact.html">Contact</a>
+    </div>
+  </footer>
 </body>
 </html>
