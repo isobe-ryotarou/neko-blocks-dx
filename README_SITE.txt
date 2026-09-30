@@ -1,22 +1,27 @@
-SOFTAZIO Website v0.1
+SOFTAZIO Web Site v1.0
 
-Purpose:
-Test-launch website for SOFTAZIO and Product 001 — NEKO BLOCKS DX.
+Pages:
+- index.html                 TOP
+- products.html              PRODUCTS
+- product-neko-blocks.html   Product 001 detail
+- about.html                 ABOUT
+- news.html                  NEWS
+- contact.html               CONTACT
+- privacy.html               PRIVACY
+- how-to-play.html           Game guide
+- game.html                  NEKO BLOCKS DX 5.25 Stable
 
-Structure:
-/
-  index.html          SOFTAZIO top page
-  how-to-play.html    Game guide
-  privacy.html        Privacy policy draft
-  contact.html        Contact page placeholder
-  site.css            Website styling
-  game/               NEKO BLOCKS DX 5.25 STABLE
+Smartphone deployment:
+1. Download ZIP
+2. Extract it
+3. GitHub repository > Add file > Upload files
+4. Select all extracted files
+5. Commit changes
+6. Wait for GitHub Pages to update
+7. Open https://isobe-ryotarou.github.io/neko-blocks-dx/
 
-Upload:
-Upload all extracted files/folders to the GitHub Pages repository root.
-
-Important before AdSense application:
-- Replace the placeholder contact page with a real contact method.
-- Review/update privacy policy after analytics/AdSense are actually installed.
-- Add analytics only after choosing the analytics service.
-- Keep the game build frozen unless fixing bugs.
+Notes:
+- Flat folder structure for Android upload.
+- Contact address is not invented; contact page says it is being prepared.
+- SOFTAZIO is described as a project/software studio brand, not an incorporated company.
+- Game logic remains 5.25 Stable.
