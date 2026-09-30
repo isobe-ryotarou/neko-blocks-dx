@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.14
+  NEKO BLOCKS DX 5.15
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -19,7 +19,7 @@ const CFG={
   spawnDelay:120,
   clearDelay:230,
   gravityDelay:190,
-  dogChance:.06
+  dogChance:0
 };
 
 // Color-blind-conscious palette:
@@ -232,9 +232,19 @@ class AudioEngine{
     }
   }
   thunder(chain){
-    this.tone(68,.18,.05,'sawtooth');
-    this.tone(46,.26,.04,'sawtooth',.04);
-    if(chain>=4)this.tone(900,.045,.025,'square',.02);
+    // 5.15: large synchronized thunder hit for 3+ combos.
+    this.tone(58,.30,.075,'sawtooth');
+    this.tone(41,.42,.060,'sawtooth',.025);
+    this.tone(92,.16,.055,'square',.015);
+    this.tone(1250,.045,.035,'square',.02);
+    this.tone(760,.08,.035,'triangle',.065);
+    if(chain>=4){
+      this.tone(1500,.05,.035,'square',.10);
+      this.tone(34,.48,.050,'sawtooth',.08);
+    }
+    if(chain>=5){
+      this.tone(1850,.045,.032,'square',.15);
+    }
   }
 
 
@@ -488,7 +498,7 @@ class PieceFactory{
     return {
       shapeIdx,
       matrix,
-      dog:Math.random()<CFG.dogChance,
+      dog:false,
       x:0,
       y:0
     };
@@ -758,7 +768,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.14 • SCORE & LUXURY HUD',{
+    this.add.text(w/2,575,'BUILD 5.15 • CHAIN TOUCH BOOST',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -889,6 +899,7 @@ class GameScene extends Phaser.Scene{
 
     // 5.11 touch controls
     this.touchDrag=null;
+    this.touchingPiece=false;
     this.rotatingUntil=0;
 
     // 5.7: stage-FX runtime state
@@ -906,15 +917,65 @@ class GameScene extends Phaser.Scene{
 
     this.factory.setStage(this.stage);
     this.nextQueue=[
-      this.factory.create(),
-      this.factory.create(),
-      this.factory.create()
+      this.createSmartPiece(),
+      this.createSmartPiece(),
+      this.createSmartPiece()
     ];
 
     AUDIO.setStage(this.stage);
     if(this.secretMode)this.buildSecretStageControls();
 
     this.spawn();
+  }
+
+  createSmartPiece(){
+    const piece=this.factory.create();
+    piece.dog=false;
+
+    // If the board is still almost empty, keep some randomness.
+    const freq=Array(5).fill(0);
+    const nearBottom=Array(5).fill(0);
+    let occupiedCount=0;
+
+    for(let y=0;y<CFG.rows;y++){
+      for(let x=0;x<CFG.cols;x++){
+        const c=this.board?.grid?.[y]?.[x];
+        if(!c)continue;
+        occupiedCount++;
+        freq[c.colorIdx]++;
+        if(y>=CFG.rows-6)nearBottom[c.colorIdx]+=2;
+      }
+    }
+
+    if(occupiedCount<5 || Math.random()>.78)return piece;
+
+    // Favor colors already present in the lower field.
+    const ranked=[0,1,2,3,4].sort((a,b)=>
+      (freq[b]+nearBottom[b])-(freq[a]+nearBottom[a])
+    );
+    const main=ranked[0];
+    const sub=ranked[1];
+
+    // Recolor 2–3 cells, making planned cascades more likely,
+    // but never force a guaranteed four-of-a-kind piece.
+    const cells=[];
+    occupied(piece.matrix,(x,y)=>cells.push([x,y]));
+    Phaser.Utils.Array.Shuffle(cells);
+
+    const targetCount=Math.random()<.58?3:2;
+    for(let i=0;i<Math.min(targetCount,cells.length);i++){
+      const [x,y]=cells[i];
+      piece.matrix[y][x]=(i===targetCount-1 && Math.random()<.32)?sub:main;
+    }
+
+    const vals=[];
+    occupied(piece.matrix,(_,__,c)=>vals.push(c));
+    if(vals.length===4 && vals.every(c=>c===vals[0])){
+      const [x,y]=cells[cells.length-1];
+      piece.matrix[y][x]=(main+1+((Math.random()*4)|0))%5;
+    }
+
+    return piece;
   }
 
   buildUI(){
@@ -1108,6 +1169,8 @@ class GameScene extends Phaser.Scene{
     this.input.on('pointerdown',p=>{
       if(!insideBoard(p) || !this.canControl())return;
       AUDIO.userGestureResume();
+      this.touchingPiece=true;
+      this.redraw();
       this.touchDrag={
         startX:p.x,startY:p.y,
         lastX:p.x,lastY:p.y,
@@ -1162,6 +1225,8 @@ class GameScene extends Phaser.Scene{
       const duration=this.time.now-d.downAt;
       const isTap=!d.moved && Math.abs(totalDx)<13 && Math.abs(totalDy)<13 && duration<420;
       this.touchDrag=null;
+      this.touchingPiece=false;
+      this.redraw();
 
       if(isTap && this.canControl()){
         this.rotate();
@@ -1221,16 +1286,17 @@ class GameScene extends Phaser.Scene{
   spawn(){
     if(this.ended)return;
 
+    this.touchingPiece=false;
     this.state='SPAWN';
     this.factory.setStage(this.stage);
 
     if(!this.nextQueue || this.nextQueue.length<3){
       this.nextQueue=this.nextQueue||[];
-      while(this.nextQueue.length<3)this.nextQueue.push(this.factory.create());
+      while(this.nextQueue.length<3)this.nextQueue.push(this.createSmartPiece());
     }
 
-    this.piece=this.nextQueue.shift()||this.factory.create();
-    this.nextQueue.push(this.factory.create());
+    this.piece=this.nextQueue.shift()||this.createSmartPiece();
+    this.nextQueue.push(this.createSmartPiece());
 
     this.piece.x=Math.floor((CFG.cols-this.piece.matrix[0].length)/2);
     this.piece.y=0;
@@ -1418,72 +1484,51 @@ class GameScene extends Phaser.Scene{
   showChain(chainNo,count){
     const label=chainNo<=1?'コンボ！':`${chainNo}コンボ！`;
     const x=this.scale.width/2;
-    const y=this.by+150;
+    const y=this.by+155;
 
-    // Speech-bubble style combo callout.
+    // One clean wide bubble: combo label and points never overlap.
     const bubble=this.add.graphics().setDepth(92);
-    bubble.fillStyle(0xffffff,.97);
-    bubble.lineStyle(4,0x101820,1);
-    bubble.fillRoundedRect(x-82,y-34,164,68,22);
-    bubble.strokeRoundedRect(x-82,y-34,164,68,22);
-    bubble.fillTriangle(x-18,y+32,x+8,y+32,x-4,y+50);
-    bubble.lineBetween(x-18,y+32,x-4,y+50);
-    bubble.lineBetween(x-4,y+50,x+8,y+32);
+    bubble.fillStyle(0xffffff,.98);
+    bubble.lineStyle(chainNo>=3?5:4,chainNo>=3?0xffd54f:0x101820,1);
+    bubble.fillRoundedRect(x-108,y-48,216,94,24);
+    bubble.strokeRoundedRect(x-108,y-48,216,94,24);
+    bubble.fillTriangle(x-16,y+44,x+10,y+44,x-3,y+62);
 
-    const txt=this.add.text(x,y-2,label,{
+    const txt=this.add.text(x,y-17,label,{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:chainNo>=5?'29px':'27px',
+      fontSize:chainNo>=5?'30px':'27px',
       fontStyle:'bold',
-      color:chainNo>=3?'#d53131':'#101820',
-      stroke:'#ffffff',
-      strokeThickness:2
-    }).setOrigin(.5).setDepth(93).setScale(.35).setAlpha(0);
+      color:chainNo>=3?'#d52e2e':'#101820',
+      stroke:'#ffffff',strokeThickness:2
+    }).setOrigin(.5).setDepth(93).setScale(.4).setAlpha(0);
 
-    const tiny=this.add.text(x,y+22,`${count} BLOCK CLEAR`,{
+    const gain=this.add.text(x,y+19,`+${(this.lastGain||0).toLocaleString('ja-JP')} pt`,{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'9px',fontStyle:'bold',
-      color:'#52616b'
-    }).setOrigin(.5).setDepth(93).setAlpha(0);
+      fontSize:'16px',fontStyle:'bold',
+      color:'#c58b00',
+      stroke:'#ffffff',strokeThickness:2
+    }).setOrigin(.5).setDepth(93).setAlpha(0).setScale(.7);
 
-    bubble.setScale(.4).setAlpha(0);
+    bubble.setScale(.45).setAlpha(0);
 
     this.tweens.add({
-      targets:bubble,
-      scale:1,alpha:1,
+      targets:bubble,scale:1,alpha:1,
       duration:150,ease:'Back.easeOut',
       hold:300,yoyo:true,
       onComplete:()=>bubble.destroy()
     });
-
     this.tweens.add({
-      targets:txt,
-      scale:1,alpha:1,
-      duration:160,ease:'Back.easeOut',
+      targets:txt,scale:1,alpha:1,
+      duration:165,ease:'Back.easeOut',
       hold:280,yoyo:true,
       onComplete:()=>txt.destroy()
     });
-
     this.tweens.add({
-      targets:tiny,
-      alpha:1,duration:140,delay:60,
-      hold:230,yoyo:true,
-      onComplete:()=>tiny.destroy()
-    });
-    const gain=this.add.text(x,y+52,`+${(this.lastGain||0).toLocaleString('ja-JP')} pt`,{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'15px',fontStyle:'bold',
-      color:'#ffd54f',
-      stroke:'#000000',strokeThickness:4
-    }).setOrigin(.5).setDepth(94).setAlpha(0).setScale(.7);
-
-    this.tweens.add({
-      targets:gain,
-      alpha:1,scale:1,y:gain.y-8,
-      duration:170,ease:'Back.easeOut',
-      hold:260,yoyo:true,
+      targets:gain,alpha:1,scale:1,
+      duration:150,delay:55,
+      hold:250,yoyo:true,
       onComplete:()=>gain.destroy()
     });
-
   }
 
   chainLightning(chainNo,cells){
@@ -1491,30 +1536,63 @@ class GameScene extends Phaser.Scene{
     const ay=cells.reduce((s,p)=>s+p[1],0)/cells.length;
     const tx=this.bx+ax*CFG.cell+CFG.cell/2;
     const ty=this.by+ay*CFG.cell+CFG.cell/2;
+    const boltCount=Math.min(9,4+chainNo);
 
-    this.cameras.main.flash(90,220,245,255);
-    this.cameras.main.shake(160,.007+Math.min(.01,chainNo*.0014));
+    // Sound and visuals hit together.
+    this.cameras.main.flash(150,235,248,255);
+    this.cameras.main.shake(340,.014+Math.min(.012,chainNo*.0018));
 
-    const bolt=this.add.graphics().setDepth(90);
-    bolt.lineStyle(4,0xffffff,1);
-
-    let sx=tx+(Math.random()-.5)*100;
-    bolt.beginPath();
-    bolt.moveTo(sx,this.by-45);
-
-    for(let i=1;i<=9;i++){
-      const t=i/9;
-      bolt.lineTo(
-        Phaser.Math.Linear(sx,tx,t)+(Math.random()-.5)*40,
-        Phaser.Math.Linear(this.by-45,ty,t)
-      );
+    // Blue-white shock rings.
+    for(let r=0;r<3;r++){
+      const ring=this.add.circle(tx,ty,18)
+        .setStrokeStyle(4-r, r===1?0x56b4e9:0xffffff,.92)
+        .setDepth(96);
+      this.tweens.add({
+        targets:ring,
+        scale:5.5+r*1.6,alpha:0,
+        duration:420+r*110,
+        onComplete:()=>ring.destroy()
+      });
     }
-    bolt.lineTo(tx,ty);
-    bolt.strokePath();
 
-    this.tweens.add({
-      targets:bolt,alpha:0,duration:280,
-      onComplete:()=>bolt.destroy()
+    for(let n=0;n<boltCount;n++){
+      const bolt=this.add.graphics().setDepth(98);
+      const glow=this.add.graphics().setDepth(97);
+      const sx=this.bx+Math.random()*CFG.boardW;
+      const points=[[sx,this.by-28]];
+      let px=sx;
+      const seg=10;
+
+      for(let i=1;i<=seg;i++){
+        const t=i/seg;
+        px+=(Math.random()-.5)*50;
+        points.push([
+          Phaser.Math.Linear(px,tx,t)+(Math.random()-.5)*28,
+          Phaser.Math.Linear(this.by-28,ty,t)
+        ]);
+      }
+      points.push([tx,ty]);
+
+      glow.lineStyle(10,0x56b4e9,.20);
+      glow.beginPath(); glow.moveTo(...points[0]);
+      points.slice(1).forEach(p=>glow.lineTo(...p)); glow.strokePath();
+
+      bolt.lineStyle(n%3===0?5:3,n%3===0?0xffffff:0xbfefff,1);
+      bolt.beginPath(); bolt.moveTo(...points[0]);
+      points.slice(1).forEach(p=>bolt.lineTo(...p)); bolt.strokePath();
+
+      this.tweens.add({
+        targets:[bolt,glow],
+        alpha:0,
+        duration:220+Math.random()*180,
+        delay:n*20,
+        onComplete:()=>{bolt.destroy();glow.destroy();}
+      });
+    }
+
+    // secondary flash gives the arcade "crack" feeling
+    this.time.delayedCall(110,()=>{
+      this.cameras.main.flash(80,255,255,255);
     });
   }
 
@@ -2173,17 +2251,24 @@ class GameScene extends Phaser.Scene{
   }
 
   drawPiece(layer,piece,boardY,alpha=1,ghost=false){
+    const activeGrow=(!ghost && this.touchingPiece)?1.16:1;
+
     occupied(piece.matrix,(x,y,colorIdx)=>{
       const key=piece.dog?'dog':'cat'+colorIdx;
-      const sp=this.add.image(
-        this.bx+(piece.x+x)*CFG.cell+CFG.cell/2,
-        this.by+(boardY+y)*CFG.cell+CFG.cell/2,
-        key
-      ).setAlpha(alpha).setDisplaySize(CFG.cell,CFG.cell);
+      const px=this.bx+(piece.x+x)*CFG.cell+CFG.cell/2;
+      const py=this.by+(boardY+y)*CFG.cell+CFG.cell/2;
+
+      const sp=this.add.image(px,py,key)
+        .setAlpha(alpha)
+        .setDisplaySize(CFG.cell*activeGrow,CFG.cell*activeGrow);
 
       if(ghost){
+        // Ghost/navigation stays exactly at the landing cell size.
         sp.setTint(0xffffff);
         sp.setAlpha(.18);
+        sp.setDisplaySize(CFG.cell,CFG.cell);
+      }else if(this.touchingPiece){
+        sp.setDepth(7);
       }
 
       layer.add(sp);
@@ -2274,6 +2359,7 @@ class GameScene extends Phaser.Scene{
   }
 
   gameOver(){
+    this.touchingPiece=false;
     if(this.ended)return;
     this.ended=true;
     this.state='GAME_OVER';

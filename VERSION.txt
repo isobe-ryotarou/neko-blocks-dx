@@ -1,18 +1,17 @@
-NEKO BLOCKS DX 5.14 — SCORE & LUXURY HUD
+NEKO BLOCKS DX 5.15 — CHAIN TOUCH BOOST
 
 Changes:
-- Simplified scoring:
-  1 block = 10 pt
-  score = cleared blocks × 10 × combo count
-  Example: 4 blocks at 1 combo = 40 pt
-           4 blocks at 2 combo = 80 pt
-           5 blocks at 3 combo = 150 pt
-- Added +POINT gain display on every clear.
-- Combo voice is faster, higher, louder and layered with an arcade cheer.
-- SCORE / STAGE / NEXT / board borders upgraded with premium arcade-style frames.
-- NEXT label changed to "次 / NEXT ×3".
-- First NEXT preview is highlighted larger and brighter.
-- Board frame glow changes by stage.
+- Dog block disabled completely.
+- NEXT pieces are mildly biased toward colors already present near the bottom,
+  making 2–3 step chains more achievable without guaranteeing them.
+- Combo bubble rebuilt wider so combo count and score do not overlap.
+- 3+ combo thunder effect massively upgraded:
+  multiple blue-white lightning bolts, shock rings, flash and camera shake.
+- Thunder audio strengthened and synchronized with the visual strike.
+- While the player is touching/dragging the active piece, only that active piece
+  grows to 116% size for better tactile feedback.
+- Ghost landing preview remains unchanged at normal size.
+- Secret mode and existing stage FX remain intact.
 
-BUILD 5.14 • SCORE & LUXURY HUD
-Cache: 5140
+BUILD 5.15 • CHAIN TOUCH BOOST
+Cache: 5150
