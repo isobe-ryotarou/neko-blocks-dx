@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.4
+  NEKO BLOCKS DX 5.5
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -25,11 +25,11 @@ const CFG={
 // Color-blind-conscious palette:
 // NO red and NO green.
 const COLORS=[
-  0x0072b2,
-  0x56b4e9,
-  0xf0e442,
-  0xcc79a7,
-  0xe69f00
+  0xffffff, // white
+  0x56d9f5, // aqua
+  0xf5d90a, // yellow
+  0x151515, // black
+  0xf01818  // red
 ];
 
 const SHAPE_MASKS=[
@@ -47,11 +47,23 @@ const PIECE_WEIGHTS=[13.45,13.45,13.45,13.45,19.30,13.45,13.45];
 const STAGE_MESSAGES=['','達人','天才','神域','怪物','無双','伝説','覚醒','極限','王者','制覇'];
 
 const REAL_BGM={
-  1:{
-    title:'ショパン：英雄ポロネーズ Op.53',
-    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Chopin_-_Polonaise_Op._53.oga',
-    rate:1.06, volume:.98
-  },
+  1:[
+    {
+      title:'ボギー大佐',
+      url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Colonel_Bogey.ogg',
+      rate:1.08, volume:.98
+    },
+    {
+      title:'Scott Joplin：The Entertainer',
+      url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/The_Entertainer_-_Scott_Joplin.ogg',
+      rate:1.08, volume:.98
+    },
+    {
+      title:'12th Street Rag',
+      url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Twelfth_Street_Rag.ogg',
+      rate:1.08, volume:.98
+    }
+  ],
   2:{
     title:'ラデツキー行進曲',
     url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Radetzky_March.ogg',
@@ -78,9 +90,9 @@ const REAL_BGM={
     rate:1.20, volume:.98
   },
   7:{
-    title:'熊蜂の飛行',
-    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Rimsky-Korsakov_-_flight_of_the_bumblebee.oga',
-    rate:1.22, volume:.98
+    title:'Jazz Me Blues',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/OriginalDixielandJassBand-JazzMeBlues.ogg',
+    rate:1.10, volume:.98
   },
   8:{
     title:'山の魔王の宮殿にて',
@@ -88,14 +100,14 @@ const REAL_BGM={
     rate:1.22, volume:.98
   },
   9:{
-    title:'運命 第1楽章',
-    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Ludwig_van_Beethoven_-_symphony_no._5_in_c_minor,_op._67_-_i._allegro_con_brio.ogg',
-    rate:1.20, volume:.98
+    title:'ワシントン・ポスト・マーチ',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Washington_Post_March_-_U.S._Army_Band.ogg',
+    rate:1.14, volume:.98
   },
   10:{
-    title:'熊蜂の飛行 - FINAL RUSH',
-    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Rimsky-Korsakov_-_flight_of_the_bumblebee.oga',
-    rate:1.32, volume:1.0
+    title:'リパブリック讃歌',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Battle_Hymn_of_the_Republic_(USAFB).ogg',
+    rate:1.14, volume:1.0
   }
 };
 
@@ -142,6 +154,7 @@ class AudioEngine{
     this.realAudio=null;
     this.realStage=0;
     this.wantBgm=true;
+    this.currentCfg=null;
   }
 
   ensure(){
@@ -184,8 +197,15 @@ class AudioEngine{
   }
 
   setStage(stage){
-    const cfg=REAL_BGM[stage];
+    let cfg=REAL_BGM[stage];
     if(!cfg)return;
+
+    // Stage 1 deliberately randomizes among three familiar tracks
+    // each time a new game/retry begins.
+    if(Array.isArray(cfg)){
+      cfg=cfg[(Math.random()*cfg.length)|0];
+    }
+    this.currentCfg=cfg;
 
     this.stop();
 
@@ -430,71 +450,16 @@ class Board{
 class BootScene extends Phaser.Scene{
   constructor(){super('Boot')}
 
+  preload(){
+    this.load.image('cat0','assets/cat_white.png');
+    this.load.image('cat1','assets/cat_aqua.png');
+    this.load.image('cat2','assets/cat_yellow.png');
+    this.load.image('cat3','assets/cat_black.png');
+    this.load.image('cat4','assets/cat_red.png');
+  }
+
   create(){
-    for(let i=0;i<COLORS.length;i++){
-      const g=this.add.graphics();
-
-      g.fillStyle(COLORS[i],1);
-      g.fillRoundedRect(1,1,24,24,3);
-      g.lineStyle(2,0x101010,1);
-      g.strokeRoundedRect(1,1,24,24,3);
-
-      // ears
-      g.fillStyle(COLORS[i],1);
-      g.fillTriangle(3,4,7,0,9,6);
-      g.fillTriangle(17,6,19,0,23,4);
-
-      // face
-      g.fillStyle(0xffffff,1);
-      g.fillCircle(8,10,3);
-      g.fillCircle(18,10,3);
-      g.fillStyle(0x111111,1);
-      g.fillCircle(8,10,1.2);
-      g.fillCircle(18,10,1.2);
-
-      g.lineStyle(1.5,0x111111,1);
-      g.beginPath();
-      g.moveTo(10,17);
-      g.lineTo(13,19);
-      g.lineTo(16,17);
-      g.strokePath();
-
-      // Non-color identification mark: each color has a unique symbol.
-      g.lineStyle(1.5,0x111111,1);
-      g.fillStyle(0xffffff,1);
-
-      if(i===0){
-        g.fillCircle(21,21,2.5);
-        g.strokeCircle(21,21,2.5);
-      }else if(i===1){
-        g.fillTriangle(18.5,23,21,18,23.5,23);
-        g.strokeTriangle(18.5,23,21,18,23.5,23);
-      }else if(i===2){
-        g.fillRect(18.5,18.5,5,5);
-        g.strokeRect(18.5,18.5,5,5);
-      }else if(i===3){
-        g.beginPath();
-        g.moveTo(21,18);
-        g.lineTo(24,21);
-        g.lineTo(21,24);
-        g.lineTo(18,21);
-        g.closePath();
-        g.fillPath();
-        g.strokePath();
-      }else if(i===4){
-        g.lineStyle(2,0xffffff,1);
-        g.lineBetween(18,21,24,21);
-        g.lineBetween(21,18,21,24);
-      }else{
-        g.fillCircle(19,20,1.3);
-        g.fillCircle(23,20,1.3);
-        g.fillCircle(21,23,1.3);
-      }
-
-      g.generateTexture('cat'+i,26,26);
-      g.destroy();
-    }
-
+    // Dog remains a special procedurally-drawn bomb block.
     const d=this.add.graphics();
     d.fillStyle(0x9b7a55,1);
     d.fillRoundedRect(1,1,24,24,3);
@@ -620,7 +585,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.4',{
+    this.add.text(w/2,575,'BUILD 5.5',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -1277,7 +1242,7 @@ class GameScene extends Phaser.Scene{
       this.bx+x*CFG.cell+CFG.cell/2,
       this.by+y*CFG.cell+CFG.cell/2,
       key
-    ).setAlpha(alpha);
+    ).setAlpha(alpha).setDisplaySize(CFG.cell,CFG.cell);
     return sp;
   }
 
@@ -1288,7 +1253,7 @@ class GameScene extends Phaser.Scene{
         this.bx+(piece.x+x)*CFG.cell+CFG.cell/2,
         this.by+(boardY+y)*CFG.cell+CFG.cell/2,
         key
-      ).setAlpha(alpha);
+      ).setAlpha(alpha).setDisplaySize(CFG.cell,CFG.cell);
 
       if(ghost){
         sp.setTint(0xffffff);
@@ -1305,7 +1270,7 @@ class GameScene extends Phaser.Scene{
 
     occupied(this.next.matrix,(x,y,colorIdx)=>{
       const key=this.next.dog?'dog':'cat'+colorIdx;
-      const sp=this.add.image(x*16,y*16,key).setScale(.58);
+      const sp=this.add.image(x*16,y*16,key).setDisplaySize(15,15);
       this.nextLayer.add(sp);
     });
   }
@@ -1330,7 +1295,7 @@ class GameScene extends Phaser.Scene{
           const glow=this.add.image(sp.x,sp.y,sp.texture.key)
             .setAlpha(.18)
             .setTint(0xffd54f)
-            .setScale(1.08)
+            .setDisplaySize(CFG.cell*1.08,CFG.cell*1.08)
             .setBlendMode(Phaser.BlendModes.ADD);
           this.lockedLayer.add(glow);
         }
@@ -1352,7 +1317,9 @@ class GameScene extends Phaser.Scene{
     this.clearT.setText('CLEAR '+this.clears);
     this.stageT.setText('STAGE '+this.stage);
 
-    const music=REAL_BGM[this.stage];
+    const music=(AUDIO.realStage===this.stage&&AUDIO.currentCfg)
+      ? AUDIO.currentCfg
+      : (Array.isArray(REAL_BGM[this.stage])?REAL_BGM[this.stage][0]:REAL_BGM[this.stage]);
     this.musicT.setText(music?'BGM: '+music.title:'');
 
     if(this.score>this.best){
