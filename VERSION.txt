@@ -1,4 +1,4 @@
-NEKO BLOCKS DX 5.5
+NEKO BLOCKS DX 5.5.1
 
 - Cat block graphics replaced with the user's custom five-color character set:
   WHITE / AQUA / YELLOW / BLACK / RED.
@@ -11,3 +11,7 @@ NEKO BLOCKS DX 5.5
 - Previous stage 2–6 and 8 selections retained.
 - VERSION files consolidated to VERSION.txt only.
 - Cache bust: 550.
+
+- Cat image files are now loaded from the repository root instead of /assets.
+- Intended for the current GitHub mobile upload layout.
+- Cache bust: 551.

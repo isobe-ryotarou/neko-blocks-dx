@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.5
+  NEKO BLOCKS DX 5.5.1
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -451,11 +451,11 @@ class BootScene extends Phaser.Scene{
   constructor(){super('Boot')}
 
   preload(){
-    this.load.image('cat0','assets/cat_white.png');
-    this.load.image('cat1','assets/cat_aqua.png');
-    this.load.image('cat2','assets/cat_yellow.png');
-    this.load.image('cat3','assets/cat_black.png');
-    this.load.image('cat4','assets/cat_red.png');
+    this.load.image('cat0','cat_white.png');
+    this.load.image('cat1','cat_aqua.png');
+    this.load.image('cat2','cat_yellow.png');
+    this.load.image('cat3','cat_black.png');
+    this.load.image('cat4','cat_red.png');
   }
 
   create(){
@@ -585,7 +585,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.5',{
+    this.add.text(w/2,575,'BUILD 5.5.1',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
