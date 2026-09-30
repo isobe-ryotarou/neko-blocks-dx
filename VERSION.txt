@@ -1,4 +1,4 @@
-NEKO BLOCKS DX 5.5.2
+NEKO BLOCKS DX 5.5.3
 
 - Cat block graphics replaced with the user's custom five-color character set:
   WHITE / AQUA / YELLOW / BLACK / RED.
@@ -20,3 +20,12 @@ NEKO BLOCKS DX 5.5.2
 - Title BGM begins after the first user tap/key gesture due browser autoplay rules.
 - START fades the title BGM out before Stage 1 BGM begins.
 - Cache bust: 552.
+
+- Game-over flow changed:
+  1) stop BGM immediately,
+  2) play a short "チャンチャン!" game-over jingle,
+  3) transition into a Stage 10 visual attract/demo,
+  4) show RETRY after the demo.
+- Stage 10 demo uses black/gold presentation, custom cat blocks, simulated chain and lightning.
+- Demo is visual-only; no BGM resumes during the game-over demo.
+- Cache bust: 553.

@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.5.2
+  NEKO BLOCKS DX 5.5.3
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -276,6 +276,39 @@ class AudioEngine{
       setTimeout(()=>{try{gain.disconnect()}catch{}},(fade+.08)*1000);
       this.titleGain=null;
     }
+  }
+
+
+  gameOverJingle(){
+    this.ensure();
+    if(!this.ctx)return;
+    if(this.ctx.state==='suspended')this.ctx.resume().catch(()=>{});
+
+    const ctx=this.ctx;
+    const out=ctx.createGain();
+    out.gain.setValueAtTime(.12,ctx.currentTime);
+    out.connect(ctx.destination);
+
+    const hit=(freq,start,dur=.16,type='square',vol=.22)=>{
+      const o=ctx.createOscillator();
+      const gg=ctx.createGain();
+      const t=ctx.currentTime+start;
+      o.type=type;
+      o.frequency.setValueAtTime(freq,t);
+      gg.gain.setValueAtTime(.0001,t);
+      gg.gain.exponentialRampToValueAtTime(vol,t+.01);
+      gg.gain.exponentialRampToValueAtTime(.0001,t+dur);
+      o.connect(gg).connect(out);
+      o.start(t);o.stop(t+dur+.03);
+    };
+
+    // "チャン・チャン！" — two short descending arcade hits.
+    hit(392.00,.00,.17,'square',.22);
+    hit(293.66,.03,.17,'triangle',.12);
+    hit(329.63,.30,.22,'square',.24);
+    hit(246.94,.33,.22,'triangle',.13);
+
+    setTimeout(()=>{try{out.disconnect()}catch{}},800);
   }
 
   setStage(stage){
@@ -669,7 +702,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.5.2',{
+    this.add.text(w/2,575,'BUILD 5.5.3.2',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -1430,31 +1463,228 @@ class GameScene extends Phaser.Scene{
     if(this.ended)return;
     this.ended=true;
     this.state='GAME_OVER';
+
+    // Stop any music immediately, then play the short arcade ending sting.
     AUDIO.pause();
+    AUDIO.stop();
+    AUDIO.stopTitleMusic(0);
+    AUDIO.gameOverJingle();
 
     const w=this.scale.width,h=this.scale.height;
-    this.add.rectangle(w/2,h/2,w,h,0x000000,.72).setDepth(160);
 
-    this.add.text(w/2,h*.40,'GAME OVER',{
+    const shade=this.add.rectangle(w/2,h/2,w,h,0x000000,.78).setDepth(160);
+
+    const over=this.add.text(w/2,h*.38,'GAME OVER',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'44px',color:'#ffffff'
-    }).setOrigin(.5).setDepth(161);
+      fontSize:'44px',color:'#ffffff',
+      stroke:'#000000',strokeThickness:7
+    }).setOrigin(.5).setDepth(161).setAlpha(0).setScale(.65);
 
-    this.add.text(w/2,h*.51,
-      `SCORE ${this.score}\nCLEAR ${this.clears}\nSTAGE ${this.stage}`,
+    const stat=this.add.text(w/2,h*.51,
+      `SCORE ${this.score}
+CLEAR ${this.clears}
+STAGE ${this.stage}`,
       {align:'center',fontSize:'18px',color:'#ffffff',lineSpacing:8}
-    ).setOrigin(.5).setDepth(161);
+    ).setOrigin(.5).setDepth(161).setAlpha(0);
 
-    const retry=this.add.text(w/2,h*.65,'RETRY',{
+    this.tweens.add({
+      targets:over,alpha:1,scale:1,
+      duration:260,ease:'Back.easeOut'
+    });
+
+    this.tweens.add({
+      targets:stat,alpha:1,
+      duration:320,delay:160
+    });
+
+    // Short hold after the "チャンチャン!" sting, then run a Stage 10 attract/demo.
+    this.time.delayedCall(1150,()=>{
+      this.tweens.add({
+        targets:[over,stat,shade],
+        alpha:0,duration:360,
+        onComplete:()=>{
+          over.destroy();stat.destroy();shade.destroy();
+          this.playStage10Demo();
+        }
+      });
+    });
+  }
+
+  playStage10Demo(){
+    const w=this.scale.width,h=this.scale.height;
+
+    // Dark final-stage presentation.
+    const bg=this.add.rectangle(w/2,h/2,w,h,0x000000,1).setDepth(170);
+    const frame=this.add.rectangle(
+      this.bx+CFG.boardW/2,
+      this.by+CFG.boardH/2,
+      CFG.boardW,CFG.boardH,
+      0x070707,.98
+    ).setStrokeStyle(3,0xffd54f,1).setDepth(171);
+
+    const title=this.add.text(w/2,24,'STAGE 10  DEMO',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'26px',color:'#111111',
-      backgroundColor:'#ffffff',
-      padding:{left:26,right:26,top:10,bottom:10}
-    }).setOrigin(.5).setDepth(161).setInteractive();
+      fontSize:'22px',fontStyle:'bold',
+      color:'#ffd54f',
+      stroke:'#000000',strokeThickness:5
+    }).setOrigin(.5,0).setDepth(176).setAlpha(0);
 
-    retry.on('pointerdown',()=>{
-      AUDIO.userGestureResume();
-      this.scene.restart();
+    const sub=this.add.text(w/2,53,'FINAL CHAIN',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'11px',fontStyle:'bold',
+      color:'#f6e7a8'
+    }).setOrigin(.5,0).setDepth(176).setAlpha(0);
+
+    this.tweens.add({targets:[title,sub],alpha:1,duration:300});
+
+    // Gold rising particles.
+    const sparks=[];
+    for(let i=0;i<28;i++){
+      const p=this.add.circle(
+        this.bx+10+Math.random()*(CFG.boardW-20),
+        this.by+CFG.boardH+Math.random()*80,
+        1+Math.random()*2,
+        i%4===0?0xffffff:0xffd54f,
+        .25+Math.random()*.55
+      ).setDepth(172);
+      sparks.push(p);
+      this.tweens.add({
+        targets:p,
+        y:this.by-20,
+        x:p.x+(Math.random()-.5)*45,
+        duration:2200+Math.random()*2200,
+        delay:Math.random()*700,
+        repeat:-1,ease:'Sine.easeIn'
+      });
+    }
+
+    // Build a stylized stack from the five cat assets.
+    const demo=[];
+    const colorKeys=['cat0','cat1','cat2','cat3','cat4'];
+
+    const layout=[
+      [0,19,0],[1,19,1],[2,19,2],[3,19,3],[4,19,4],[5,19,0],[6,19,2],[7,19,1],[8,19,3],[9,19,4],
+      [0,18,1],[1,18,1],[2,18,2],[3,18,4],[4,18,4],[5,18,0],[6,18,0],[7,18,2],[8,18,3],[9,18,3],
+      [1,17,2],[2,17,2],[3,17,4],[4,17,0],[5,17,0],[6,17,1],[7,17,1],[8,17,3],
+      [2,16,2],[3,16,4],[4,16,0],[5,16,1],[6,16,1],[7,16,3],
+      [3,15,4],[4,15,0],[5,15,1],[6,15,3]
+    ];
+
+    for(const [x,y,c] of layout){
+      const sp=this.add.image(
+        this.bx+x*CFG.cell+CFG.cell/2,
+        this.by+y*CFG.cell+CFG.cell/2,
+        colorKeys[c]
+      ).setDisplaySize(CFG.cell,CFG.cell).setDepth(174).setAlpha(0);
+
+      const glow=this.add.image(sp.x,sp.y,colorKeys[c])
+        .setDisplaySize(CFG.cell*1.08,CFG.cell*1.08)
+        .setTint(0xffd54f)
+        .setAlpha(.16)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setDepth(173);
+
+      demo.push(sp,glow);
+
+      this.tweens.add({
+        targets:sp,alpha:1,y:sp.y-6,
+        duration:260+Math.random()*220,
+        delay:180+y*6,
+        yoyo:true,
+        ease:'Sine.easeOut'
+      });
+    }
+
+    // Simulated falling 4-cell piece.
+    this.time.delayedCall(550,()=>{
+      const falling=[];
+      const cols=[2,3,4,5];
+      const keys=['cat2','cat2','cat2','cat2'];
+
+      cols.forEach((cx,i)=>{
+        const sp=this.add.image(
+          this.bx+cx*CFG.cell+CFG.cell/2,
+          this.by-25,
+          keys[i]
+        ).setDisplaySize(CFG.cell,CFG.cell).setDepth(178);
+        falling.push(sp);
+
+        this.tweens.add({
+          targets:sp,
+          y:this.by+(14+i%2)*CFG.cell+CFG.cell/2,
+          duration:620+i*45,
+          ease:'Cubic.easeIn'
+        });
+      });
+
+      this.time.delayedCall(720,()=>{
+        falling.forEach(s=>s.destroy());
+
+        const chain=this.add.text(w/2,h*.42,'4 CHAIN!!',{
+          fontFamily:'Arial Black, sans-serif',
+          fontSize:'48px',fontStyle:'bold',
+          color:'#fff59d',
+          stroke:'#000000',strokeThickness:9,
+          shadow:{offsetX:0,offsetY:0,color:'#ffd54f',blur:14,fill:true}
+        }).setOrigin(.5).setDepth(190).setScale(.3).setAlpha(0);
+
+        this.cameras.main.flash(140,255,240,160);
+        this.cameras.main.shake(260,.012);
+
+        this.tweens.add({
+          targets:chain,alpha:1,scale:1.1,y:chain.y-26,
+          duration:260,ease:'Back.easeOut',
+          hold:450,yoyo:true,
+          onComplete:()=>chain.destroy()
+        });
+
+        // lightning strike
+        const bolt=this.add.graphics().setDepth(189);
+        bolt.lineStyle(5,0xffffff,1);
+        let sx=w*.74;
+        bolt.beginPath();
+        bolt.moveTo(sx,this.by-25);
+        for(let i=1;i<=8;i++){
+          const t=i/8;
+          bolt.lineTo(
+            Phaser.Math.Linear(sx,w*.48,t)+(Math.random()-.5)*35,
+            Phaser.Math.Linear(this.by-25,h*.58,t)
+          );
+        }
+        bolt.strokePath();
+
+        this.tweens.add({
+          targets:bolt,alpha:0,duration:330,
+          onComplete:()=>bolt.destroy()
+        });
+      });
+    });
+
+    // Demo ends with a retry prompt.
+    this.time.delayedCall(3350,()=>{
+      const retry=this.add.text(w/2,h*.78,'RETRY',{
+        fontFamily:'Arial Black, sans-serif',
+        fontSize:'25px',fontStyle:'bold',
+        color:'#101010',backgroundColor:'#ffd54f',
+        padding:{left:30,right:30,top:11,bottom:11}
+      }).setOrigin(.5).setDepth(195).setAlpha(0).setInteractive();
+
+      const hint=this.add.text(w/2,h*.86,'もう一度挑戦',{
+        fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+        fontSize:'12px',color:'#e7d78b'
+      }).setOrigin(.5).setDepth(195).setAlpha(0);
+
+      this.tweens.add({
+        targets:[retry,hint],
+        alpha:1,y:'-=8',
+        duration:360,ease:'Cubic.easeOut'
+      });
+
+      retry.on('pointerdown',()=>{
+        retry.setScale(.94).setAlpha(.72);
+        AUDIO.userGestureResume();
+        this.time.delayedCall(90,()=>this.scene.restart());
+      });
     });
   }
 }
