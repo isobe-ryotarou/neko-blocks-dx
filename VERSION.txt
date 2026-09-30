@@ -1,11 +1,13 @@
-NEKO BLOCKS DX 5.21 — STOCK STAR
+NEKO BLOCKS DX 5.22 — STOCK STAR FIX
 
-- 2コンボ成立時に、お助け流れ星 💫 が1つ流れます。
-- 流れ星をタップするとAUTO DROPの上にストックされます。
-- ストック上限は3個。
-- ストックされた星をタップすると1個消費して下6段を消去します。
-- 下6段消去時は雷・フラッシュ・画面揺れ・衝撃波・粒子演出。
-- 旧「詰みかけ・1ステージ1回」ルールは廃止。
+Fixes:
+- Shooting star now moves as one container.
+- Added large 80×80 transparent tap area around the moving star.
+- Star icon, glow and hit zone are all tappable.
+- Catching a star now always increments stock immediately.
+- Added fly-to-stock animation and "STOCK 1/3" confirmation.
+- Stock slot tap zones enlarged.
+- Stock cleanup updated for the new carrier container.
 
-BUILD 5.21 • STOCK STAR
-Cache: 5210
+BUILD 5.22 • STOCK STAR FIX
+Cache: 5220

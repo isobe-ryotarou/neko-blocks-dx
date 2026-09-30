@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.21
+  NEKO BLOCKS DX 5.22
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -768,7 +768,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.21 • STOCK STAR',{
+    this.add.text(w/2,575,'BUILD 5.22 • STOCK STAR FIX',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -1143,12 +1143,14 @@ class GameScene extends Phaser.Scene{
       const icon=this.add.text(390,sy,'☆',{fontSize:'22px'})
         .setOrigin(.5).setAlpha(.30).setDepth(33);
 
-      const hit=this.add.zone(390,sy,48,30)
+      const hit=this.add.zone(390,sy,54,34)
         .setDepth(41)
         .setInteractive({useHandCursor:true});
 
       hit.on('pointerdown',()=>{
         if(index>=this.rescueStarStock)return;
+        icon.setScale(.70);
+        this.time.delayedCall(90,()=>icon.setScale(1));
         this.useRescueStock();
       });
 
@@ -1576,57 +1578,95 @@ class GameScene extends Phaser.Scene{
     if(this.rescueStarActive)return;
 
     const y=this.by+82+Math.random()*120;
-    const star=this.add.text(-34,y,'💫',{fontSize:'40px'})
-      .setOrigin(.5).setDepth(170).setInteractive({useHandCursor:true});
 
-    const glow=this.add.circle(-34,y,30,0xfff59d,.16)
-      .setStrokeStyle(2,0xffffff,.42)
-      .setDepth(169);
+    // 5.22: use one moving container with a large 80x80 hit zone.
+    const carrier=this.add.container(-44,y).setDepth(170);
 
-    this.rescueStarActive={star,glow};
+    const glow=this.add.circle(0,0,31,0xfff59d,.18)
+      .setStrokeStyle(2,0xffffff,.46);
 
-    const tween=this.tweens.add({
+    const star=this.add.text(0,0,'💫',{fontSize:'42px'})
+      .setOrigin(.5);
+
+    const hit=this.add.zone(0,0,80,80)
+      .setInteractive({useHandCursor:true});
+
+    carrier.add([glow,star,hit]);
+
+    // tiny pulse makes it easier to notice
+    this.tweens.add({
       targets:[star,glow],
-      x:this.scale.width+38,
-      duration:5000,
+      scale:{from:.92,to:1.10},
+      duration:360,
+      yoyo:true,
+      repeat:-1,
+      ease:'Sine.easeInOut'
+    });
+
+    this.rescueStarActive={carrier,star,glow,hit};
+
+    const fly=this.tweens.add({
+      targets:carrier,
+      x:this.scale.width+44,
+      duration:5600,
       ease:'Linear',
       onComplete:()=>{
-        if(this.rescueStarActive?.star===star)this.rescueStarActive=null;
-        star.destroy();
-        glow.destroy();
+        if(this.rescueStarActive?.carrier===carrier){
+          this.rescueStarActive=null;
+        }
+        carrier.destroy(true);
       }
     });
 
-    star.on('pointerdown',()=>{
-      if(!star.active)return;
-      tween.stop();
+    const catchStar=()=>{
+      if(!carrier.active)return;
+
+      fly.stop();
 
       if(this.rescueStarStock<this.rescueStarMax){
         this.rescueStarStock++;
         this.updateRescueStockUI();
+        this.toneRescueCatch();
 
-        const stockMsg=this.add.text(360,150,'💫 STOCK!',{
+        // Visual confirmation: fly a copy toward stock area.
+        const caught=this.add.text(carrier.x,carrier.y,'💫',{fontSize:'40px'})
+          .setOrigin(.5).setDepth(176);
+
+        this.tweens.add({
+          targets:caught,
+          x:390,y:205,
+          scale:.55,
+          duration:360,
+          ease:'Quad.easeIn',
+          onComplete:()=>caught.destroy()
+        });
+
+        const stockMsg=this.add.text(350,140,`STOCK ${this.rescueStarStock}/3`,{
           fontFamily:'Arial Black, sans-serif',
-          fontSize:'15px',fontStyle:'bold',
+          fontSize:'16px',fontStyle:'bold',
           color:'#fff1a6',
           stroke:'#000000',strokeThickness:5
-        }).setOrigin(.5).setDepth(176).setScale(.6).setAlpha(0);
+        }).setOrigin(.5).setDepth(176).setScale(.65).setAlpha(0);
 
         this.tweens.add({
           targets:stockMsg,
-          scale:1,alpha:1,y:stockMsg.y-14,
+          scale:1,alpha:1,y:stockMsg.y-12,
           duration:180,ease:'Back.easeOut',
-          hold:260,yoyo:true,
+          hold:360,yoyo:true,
           onComplete:()=>stockMsg.destroy()
         });
-
-        this.toneRescueCatch();
       }
 
       this.rescueStarActive=null;
-      star.destroy();
-      glow.destroy();
-    });
+      carrier.destroy(true);
+    };
+
+    hit.on('pointerdown',catchStar);
+    star.setInteractive({useHandCursor:true}).on('pointerdown',catchStar);
+    glow.setInteractive(
+      new Phaser.Geom.Circle(0,0,34),
+      Phaser.Geom.Circle.Contains
+    ).on('pointerdown',catchStar);
   }
 
   toneRescueCatch(){
@@ -2437,8 +2477,9 @@ class GameScene extends Phaser.Scene{
 
   masterClear(){
     if(this.rescueStarActive){
-      try{this.rescueStarActive.star.destroy()}catch{}
-      try{this.rescueStarActive.glow.destroy()}catch{}
+      try{this.rescueStarActive.carrier?.destroy(true)}catch{}
+      try{this.rescueStarActive.star?.destroy()}catch{}
+      try{this.rescueStarActive.glow?.destroy()}catch{}
       this.rescueStarActive=null;
     }
     if(this.ended)return;
@@ -2732,8 +2773,9 @@ class GameScene extends Phaser.Scene{
   gameOver(){
     this.touchingPiece=false;
     if(this.rescueStarActive){
-      try{this.rescueStarActive.star.destroy()}catch{}
-      try{this.rescueStarActive.glow.destroy()}catch{}
+      try{this.rescueStarActive.carrier?.destroy(true)}catch{}
+      try{this.rescueStarActive.star?.destroy()}catch{}
+      try{this.rescueStarActive.glow?.destroy()}catch{}
       this.rescueStarActive=null;
     }
     if(this.ended)return;
