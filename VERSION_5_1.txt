@@ -1,0 +1,13 @@
+NEKO BLOCKS DX 5.1 - COLOR CHAIN REBUILD
+
+Core rules:
+- Each tetromino still has four cells, but every cell has its own color.
+- 4 or more orthogonally connected cells of the same color disappear.
+- Diagonal-only connections do not count.
+- After a clear, columns collapse downward.
+- The board is checked again after gravity; this can create chains.
+- One clear-resolution event increments CLEAR by 1.
+- Every 10 CLEAR advances one stage.
+- Stage 10 begins at CLEAR 90.
+- 100 CLEAR remains the long-term completion target conceptually.
+- Stage transitions are separated from board resolution state.
