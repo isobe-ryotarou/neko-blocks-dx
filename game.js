@@ -15,12 +15,12 @@ const CFG={
 };
 
 const COLORS=[
-  0xef5350, // red
-  0x42a5f5, // blue
-  0xffd54f, // yellow
-  0x66bb6a, // green
-  0xab47bc, // purple
-  0xff8a65  // orange
+  0x0072b2, // blue
+  0x56b4e9, // sky blue
+  0xf0e442, // yellow
+  0xcc79a7, // purple-pink
+  0xe69f00, // orange
+  0x7a7a7a  // gray
 ];
 
 const SHAPES=[
@@ -39,19 +39,19 @@ const STAGE_CLEAR_MESSAGES=['','達人','天才','神域','怪物','無双','伝
 
 const REAL_BGM={
   1:{
-    title:'歓喜の歌',
-    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Anthem_of_Europe_(US_Navy_instrumental_short_version).ogg',
-    rate:1.14, volume:.98, startAt:0, loopEnd:60.5
+    title:'ショパン：英雄ポロネーズ Op.53',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Chopin_-_Polonaise_Op._53.oga',
+    rate:1.08, volume:.98
   },
   2:{
-    title:'アイネ・クライネ・ナハトムジーク 第1楽章',
-    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Mozart_K525_Serenade_in_G_Major_1_-_Allegro.ogg',
-    rate:1.18, volume:.96
+    title:'ラデツキー行進曲',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Radetzky_March.ogg',
+    rate:1.12, volume:.98
   },
   3:{
-    title:'トルコ行進曲',
-    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Rondo_Alla_Turka.ogg',
-    rate:1.20, volume:.98
+    title:'モーツァルト：レクイエム「怒りの日」',
+    url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/PMLP02751-S002-02-Mozart_Requiem_Mass.ogg',
+    rate:1.10, volume:.98
   },
   4:{
     title:'カンカン',
@@ -306,12 +306,45 @@ class Board{
   }
 
   rotatedPiece(piece){
-    const oldCells=[];
-    this.eachPieceCell(piece,(x,y,color)=>oldCells.push({x,y,color}));
-    const rotated=rotateMatrixCW(piece.shape);
+    // Rotate the occupied-cell COLORS together with the shape.
+    // This also makes the O piece visibly rotate because its four colors move.
+    const h=piece.shape.length;
+    const w=piece.shape[0].length;
 
-    // Preserve color order by scan order after rotation.
-    return {...piece,shape:rotated,colors:piece.colors.slice()};
+    const colorMatrix=Array.from({length:h},()=>Array(w).fill(null));
+    let ci=0;
+    for(let y=0;y<h;y++){
+      for(let x=0;x<w;x++){
+        if(piece.shape[y][x])colorMatrix[y][x]=piece.colors[ci++];
+      }
+    }
+
+    const rotatedShape=rotateMatrixCW(piece.shape);
+    const rotatedColor=Array.from(
+      {length:w},
+      ()=>Array(h).fill(null)
+    );
+
+    for(let y=0;y<h;y++){
+      for(let x=0;x<w;x++){
+        if(colorMatrix[y][x]!==null){
+          rotatedColor[x][h-1-y]=colorMatrix[y][x];
+        }
+      }
+    }
+
+    const rotatedColors=[];
+    for(let y=0;y<rotatedShape.length;y++){
+      for(let x=0;x<rotatedShape[y].length;x++){
+        if(rotatedShape[y][x])rotatedColors.push(rotatedColor[y][x]);
+      }
+    }
+
+    return {
+      ...piece,
+      shape:rotatedShape,
+      colors:rotatedColors
+    };
   }
 
   lock(piece){
@@ -442,6 +475,28 @@ class BootScene extends Phaser.Scene{
       g.beginPath();
       g.moveTo(10,17);g.lineTo(13,19);g.lineTo(16,17);g.strokePath();
 
+      // Color-blind accessibility marker: every color has a unique symbol.
+      // Marker is in the lower-right corner, so color is not the only cue.
+      g.fillStyle(0xffffff,.98);
+      g.lineStyle(1.4,0x111111,1);
+      if(i===0){
+        g.fillCircle(21,21,2.4); g.strokeCircle(21,21,2.4);
+      }else if(i===1){
+        g.fillTriangle(18.5,23,21,18,23.5,23);
+        g.strokeTriangle(18.5,23,21,18,23.5,23);
+      }else if(i===2){
+        g.fillRect(18.5,18.5,5,5); g.strokeRect(18.5,18.5,5,5);
+      }else if(i===3){
+        g.beginPath(); g.moveTo(21,18); g.lineTo(24,21); g.lineTo(21,24); g.lineTo(18,21); g.closePath();
+        g.fillPath(); g.strokePath();
+      }else if(i===4){
+        g.lineStyle(2,0xffffff,1);
+        g.lineBetween(18.5,21,23.5,21); g.lineBetween(21,18.5,21,23.5);
+        g.lineStyle(1,0x111111,1);
+      }else{
+        g.fillCircle(19,20,1.2); g.fillCircle(23,20,1.2); g.fillCircle(21,23,1.2);
+      }
+
       // ears
       g.fillStyle(COLORS[i],1);
       g.fillTriangle(3,3,7,0,9,5);
@@ -511,7 +566,7 @@ class TitleScene extends Phaser.Scene{
       this.scene.start('Game');
     });
 
-    this.add.text(w/2,h*.72,'5.1  /  4 MATCH → DROP → CHAIN',{
+    this.add.text(w/2,h*.72,'5.2  /  COLOR-SAFE ROTATION',{
       fontSize:'12px',color:'#71808b'
     }).setOrigin(.5);
   }
@@ -1067,7 +1122,7 @@ class GameScene extends Phaser.Scene{
     ).setAlpha(alpha);
 
     if(this.stage===10&&!cell.dog){
-      // Preserve the original color; only add a gold glow layer.
+      // Keep original color for matching; final stage uses only gold outer glow.
       sp.setScale(.96);
     }
     return sp;

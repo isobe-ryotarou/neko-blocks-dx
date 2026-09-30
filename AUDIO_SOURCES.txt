@@ -73,3 +73,25 @@ Stage 5 replacement:
 - Wikimedia Commons, 11:02, 146 kbps, public domain U.S. federal government work
 - Finale begins at 7:30; the game starts playback there
 - https://commons.wikimedia.org/wiki/File:Gioachino_Rossini,_William_Tell_Overture_(military_band_version,_2000).ogg
+
+
+5.2 BGM CHANGES
+
+STAGE 1
+Chopin: Polonaise in A-flat major, Op.53 "Heroic"
+Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:Chopin_-_Polonaise_Op._53.oga
+Performance released into the public domain by the copyright holder.
+
+STAGE 2
+Johann Strauss I: Radetzky March
+United States Marine Band
+Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:Radetzky_March.ogg
+Performance is public domain as a U.S. federal government work.
+
+STAGE 3
+Mozart: Requiem in D minor K.626 - Dies irae
+Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:PMLP02751-S002-02-Mozart_Requiem_Mass.ogg
+Licensed CC BY-SA 3.0. Source page provides attribution/license details.

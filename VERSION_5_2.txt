@@ -1,0 +1,10 @@
+NEKO BLOCKS DX 5.2
+
+- Rotation now rotates the individual cell colors together with the tetromino.
+- O-piece rotation is now visually apparent because its color positions rotate.
+- Removed red and green from the gameplay palette.
+- Palette: blue, sky blue, yellow, purple-pink, orange, gray.
+- Added unique non-color marker symbols to each color tile.
+- Stage 1 BGM: Chopin Heroic Polonaise Op.53.
+- Stage 2 BGM: Radetzky March.
+- Stage 3 BGM: Mozart Requiem - Dies irae.
