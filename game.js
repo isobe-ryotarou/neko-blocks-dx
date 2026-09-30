@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.9
+  NEKO BLOCKS DX 5.9.1
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -720,7 +720,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.9 • ALL STAGES BOSS CLASS',{
+    this.add.text(w/2,575,'BUILD 5.9.1 • DARK SPIN',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -1094,17 +1094,23 @@ class GameScene extends Phaser.Scene{
 
       const sp=this.makeCell(c,x,y,1).setDepth(60);
 
+      const spinDir=Math.random()>.5?1:-1;
+      const firstScale=chainNo>=3?1.42:1.30;
+      const firstAngle=chainNo>=3?spinDir*(70+Math.random()*70):(Math.random()-.5)*18;
+      const finalAngle=chainNo>=3?spinDir*(240+Math.random()*180):(Math.random()-.5)*35;
+
       this.tweens.add({
         targets:sp,
-        scaleX:1.30,scaleY:1.30,
-        duration:85,
+        scaleX:firstScale,scaleY:firstScale,
+        angle:firstAngle,
+        duration:95,
         ease:'Quad.easeOut',
         onComplete:()=>{
           this.tweens.add({
             targets:sp,
             alpha:0,scaleX:.05,scaleY:.05,
-            angle:(Math.random()-.5)*35,
-            duration:145,
+            angle:finalAngle,
+            duration:165,
             ease:'Back.easeIn',
             onComplete:()=>sp.destroy()
           });
@@ -1814,16 +1820,46 @@ class GameScene extends Phaser.Scene{
   }
 
   applyTheme(){
+    // Stronger darkening progression by stage.
     const shades=[
-      '#eef7fb','#dcecf4','#cbdfe9','#b6cbd6','#9fb4c0',
-      '#8398a5','#647985','#465a66','#293b46','#000000'
+      '#f2fbff', // 1
+      '#d7ebf5', // 2
+      '#bed2dd', // 3
+      '#a1b5c2', // 4
+      '#8499a7', // 5
+      '#677d8b', // 6
+      '#4d616e', // 7
+      '#334550', // 8
+      '#19242c', // 9
+      '#000000'  // 10
+    ];
+
+    const boardFills=[
+      0xffffff, // 1
+      0xf6fbff, // 2
+      0xecf3f8, // 3
+      0xdde6ed, // 4
+      0xc8d3dc, // 5
+      0xaebac4, // 6
+      0x8996a0, // 7
+      0x5c6973, // 8
+      0x222a31, // 9
+      0x080808  // 10
+    ];
+
+    const boardStrokes=[
+      0x21313b,0x223540,0x243947,0x233a49,0x244050,
+      0x27475a,0x2d556d,0x356883,0x6b8799,0xffd54f
     ];
 
     this.cameras.main.setBackgroundColor(shades[this.stage-1]||'#000000');
 
     if(this.boardBg){
-      this.boardBg.setFillStyle(this.stage===10?0x080808:0xffffff,this.stage===10?.93:.94);
-      this.boardBg.setStrokeStyle(3,this.stage===10?0xffd54f:0x1b2830,1);
+      const fill=boardFills[this.stage-1] ?? 0xffffff;
+      const stroke=boardStrokes[this.stage-1] ?? 0x1b2830;
+      const alpha=this.stage>=9 ? .96 : (this.stage>=7 ? .94 : .92);
+      this.boardBg.setFillStyle(fill,alpha);
+      this.boardBg.setStrokeStyle(3,stroke,1);
     }
 
     this.redraw();
@@ -2078,9 +2114,10 @@ STAGE ${this.stage}`,
         padding:{left:30,right:30,top:11,bottom:11}
       }).setOrigin(.5).setDepth(195).setAlpha(0).setInteractive();
 
-      const hint=this.add.text(w/2,h*.86,'もう一度挑戦',{
+      const hint=this.add.text(w/2,h*.835,'もう一度挑戦',{
         fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-        fontSize:'12px',color:'#e7d78b'
+        fontSize:'13px',color:'#e7d78b',
+        stroke:'#000000',strokeThickness:3
       }).setOrigin(.5).setDepth(195).setAlpha(0);
 
       this.tweens.add({targets:[retry,hint],alpha:1,y:'-=8',duration:360,ease:'Cubic.easeOut'});

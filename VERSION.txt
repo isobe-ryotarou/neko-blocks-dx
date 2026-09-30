@@ -1,18 +1,9 @@
-NEKO BLOCKS DX 5.9 — ALL STAGES BOSS CLASS
+NEKO BLOCKS DX 5.9.1 — DARK SPIN
 
-Audit result:
-Stage 10 in 5.8 was fully wired and already included:
-camera zoom, scanlines, multi shockwaves, dual particle bursts,
-gold+white lightning, comet rain, laser cross, confetti,
-secondary lightning, secondary flash, FINAL STAGE warning,
-and persistent ambient effects.
-
-5.9 upgrade:
-- Stages 1–9 are now rebuilt toward Stage-10-class density.
-- Every stage has a second-wave effect after the initial impact.
-- Stages 2–9 use stronger particle counts, more lasers, more lightning,
-  more comet rain, more confetti, and an extra delayed flash.
-- Stage 8 and 9 are nearly final-stage strength.
-- Stage 10 is strengthened again and remains the absolute ceiling.
-- Cache bust: 590.
-- Build marker: BUILD 5.9 • ALL STAGES BOSS CLASS
+Fixes / improvements:
+- Restored strong stage-by-stage darkening of the background.
+- Board panel also darkens with stage progression; stage 10 stays black + gold border.
+- Fixed the Game Over demo hint text "もう一度挑戦" being cut off by moving it upward and adding a stroke.
+- For chain 3 and above, clear blocks now enlarge and rotate before vanishing.
+- Cache bust: 591
+- Build marker: BUILD 5.9.1 • DARK SPIN
