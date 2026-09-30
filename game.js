@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.5.1
+  NEKO BLOCKS DX 5.5.2
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -155,6 +155,9 @@ class AudioEngine{
     this.realStage=0;
     this.wantBgm=true;
     this.currentCfg=null;
+    this.titleTimer=null;
+    this.titlePlaying=false;
+    this.titleGain=null;
   }
 
   ensure(){
@@ -196,7 +199,87 @@ class AudioEngine{
     if(chain>=4)this.tone(900,.045,.025,'square',.02);
   }
 
+
+  startTitleMusic(){
+    this.ensure();
+    if(!this.ctx || this.titlePlaying)return;
+    if(this.ctx.state==='suspended')this.ctx.resume().catch(()=>{});
+
+    this.titlePlaying=true;
+    const ctx=this.ctx;
+
+    this.titleGain=ctx.createGain();
+    this.titleGain.gain.setValueAtTime(.0001,ctx.currentTime);
+    this.titleGain.gain.exponentialRampToValueAtTime(.075,ctx.currentTime+.8);
+    this.titleGain.connect(ctx.destination);
+
+    // Original title theme: 8-beat anime-like motif, fully synthesized.
+    const melody=[
+      [523.25,.0,.36],[659.25,.5,.32],[783.99,1.0,.34],[659.25,1.5,.28],
+      [587.33,2.0,.34],[698.46,2.5,.30],[880.00,3.0,.40],[783.99,3.55,.32],
+      [659.25,4.0,.34],[783.99,4.5,.34],[987.77,5.0,.42],[880.00,5.6,.30],
+      [698.46,6.0,.30],[659.25,6.45,.30],[587.33,6.9,.32],[523.25,7.4,.46]
+    ];
+    const bass=[
+      [130.81,0],[146.83,2],[174.61,4],[196.00,6]
+    ];
+    const beat=.34;
+    const loopSec=8*beat;
+
+    const scheduleLoop=()=>{
+      if(!this.titlePlaying || !this.ctx || !this.titleGain)return;
+      const base=ctx.currentTime+.05;
+
+      const note=(freq,start,dur,vol,type='triangle')=>{
+        const o=ctx.createOscillator();
+        const gg=ctx.createGain();
+        o.type=type;
+        o.frequency.setValueAtTime(freq,start);
+        gg.gain.setValueAtTime(.0001,start);
+        gg.gain.exponentialRampToValueAtTime(vol,start+.018);
+        gg.gain.exponentialRampToValueAtTime(.0001,start+dur);
+        o.connect(gg).connect(this.titleGain);
+        o.start(start);o.stop(start+dur+.03);
+      };
+
+      melody.forEach(([f,b,d])=>note(f,base+b*beat,d*beat,.12,'triangle'));
+      bass.forEach(([f,b])=>{
+        note(f,base+b*beat,beat*1.85,.055,'sine');
+        note(f*2,base+b*beat,beat*1.75,.025,'triangle');
+      });
+
+      // soft sparkle at phrase ends
+      note(1318.51,base+3.6*beat,.18,.022,'sine');
+      note(1567.98,base+7.45*beat,.18,.022,'sine');
+
+      this.titleTimer=setTimeout(scheduleLoop,Math.max(100,(loopSec-.08)*1000));
+    };
+
+    scheduleLoop();
+  }
+
+  stopTitleMusic(fade=.28){
+    if(!this.titlePlaying)return;
+    this.titlePlaying=false;
+    if(this.titleTimer){
+      clearTimeout(this.titleTimer);
+      this.titleTimer=null;
+    }
+    if(this.titleGain && this.ctx){
+      const now=this.ctx.currentTime;
+      try{
+        this.titleGain.gain.cancelScheduledValues(now);
+        this.titleGain.gain.setValueAtTime(Math.max(.0001,this.titleGain.gain.value||.05),now);
+        this.titleGain.gain.exponentialRampToValueAtTime(.0001,now+fade);
+      }catch{}
+      const gain=this.titleGain;
+      setTimeout(()=>{try{gain.disconnect()}catch{}},(fade+.08)*1000);
+      this.titleGain=null;
+    }
+  }
+
   setStage(stage){
+    this.stopTitleMusic(.12);
     let cfg=REAL_BGM[stage];
     if(!cfg)return;
 
@@ -580,18 +663,33 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerdown',()=>{
       start.setScale(.94).setAlpha(.72);
       AUDIO.userGestureResume();
-      this.time.delayedCall(90,()=>this.scene.start('Game'));
+      AUDIO.stopTitleMusic(.32);
+      this.time.delayedCall(340,()=>this.scene.start('Game'));
     });
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.5.1',{
+    this.add.text(w/2,575,'BUILD 5.5.2',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
     this.add.text(w/2,643,'CONNECT  •  DROP  •  CHAIN',{
       fontFamily:'Arial Black, sans-serif',fontSize:'12px',color:'#9fb8c7'
     }).setOrigin(.5).setDepth(6);
+
+    const soundHint=this.add.text(w/2,675,'TAP TO SOUND',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'10px',color:'#5f7886'
+    }).setOrigin(.5).setDepth(6);
+
+    const startTitleSound=()=>{
+      AUDIO.userGestureResume();
+      AUDIO.startTitleMusic();
+      soundHint.setText('♪ TITLE THEME').setColor('#8fb8ca');
+    };
+
+    this.input.once('pointerdown',startTitleSound);
+    this.input.keyboard.once('keydown',startTitleSound);
   }
 }
 

@@ -1,4 +1,4 @@
-NEKO BLOCKS DX 5.5.1
+NEKO BLOCKS DX 5.5.2
 
 - Cat block graphics replaced with the user's custom five-color character set:
   WHITE / AQUA / YELLOW / BLACK / RED.
@@ -15,3 +15,8 @@ NEKO BLOCKS DX 5.5.1
 - Cat image files are now loaded from the repository root instead of /assets.
 - Intended for the current GitHub mobile upload layout.
 - Cache bust: 551.
+
+- Added an original synthesized title-screen BGM.
+- Title BGM begins after the first user tap/key gesture due browser autoplay rules.
+- START fades the title BGM out before Stage 1 BGM begins.
+- Cache bust: 552.
