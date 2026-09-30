@@ -21,8 +21,10 @@ const CFG = {
 
   dogChance: 0.12
 };
+const CHAIN_CFG={matchMin:4,startColors:5,lateColors:6,lateColorStage:7,dogBomb:true};
 
-const COLORS=[0xe76f91,0xf2c94c,0x5cc58a,0x56a3e6,0x9b7be6,0xef9a52,0x58c5d1];
+
+const COLORS=[0xef5350,0x42a5f5,0xffd54f,0x66bb6a,0xab47bc,0xff8a65];
 const SHAPES=[
   [[1,1,1],[0,1,0]],     // T
   [[1,1],[1,1]],         // O
@@ -638,7 +640,9 @@ class AudioEngine{
 const AUDIO=new AudioEngine();
 
 class PieceFactory{
-  constructor(){this.lastKey='';this.streak=0}
+  constructor(){this.lastKey='';this.streak=0;this.stage=1}
+  setStage(stage){this.stage=stage|0}
+  colorCount(){return this.stage>=CHAIN_CFG.lateColorStage?CHAIN_CFG.lateColors:CHAIN_CFG.startColors}
 
   pickIndex(){
     let r=Math.random()*100;
@@ -657,10 +661,10 @@ class PieceFactory{
       if(key===this.lastKey&&this.streak>=2)continue;
       if(key===this.lastKey)this.streak++;
       else{this.lastKey=key;this.streak=1}
-      return {idx,dog,shape:cloneShape(SHAPES[idx]),x:0,y:0};
+      return {idx,colorIdx:(Math.random()*this.colorCount())|0,dog,shape:cloneShape(SHAPES[idx]),x:0,y:0};
     }
     const idx=this.pickIndex();
-    return {idx,dog:false,shape:cloneShape(SHAPES[idx]),x:0,y:0};
+    return {idx,colorIdx:(Math.random()*this.colorCount())|0,dog:false,shape:cloneShape(SHAPES[idx]),x:0,y:0};
   }
 }
 
@@ -689,29 +693,80 @@ class Board{
         const bx=piece.x+x;
         const by=piece.y+y;
         if(by>=0&&by<CFG.rows&&bx>=0&&bx<CFG.cols){
-          this.grid[by][bx]={idx:piece.idx,dog:piece.dog};
+          this.grid[by][bx]={idx:piece.idx,colorIdx:piece.colorIdx,dog:piece.dog};
         }
       }
     }
   }
 
-  fullRows(){
-    const rows=[];
+  findColorGroups(){
+    const seen=Array.from({length:CFG.rows},()=>Array(CFG.cols).fill(false));
+    const groups=[];
     for(let y=0;y<CFG.rows;y++){
-      let full=true;
       for(let x=0;x<CFG.cols;x++){
-        if(!this.grid[y][x]){full=false;break}
+        const cell=this.grid[y][x];
+        if(!cell||cell.dog||seen[y][x])continue;
+        const color=cell.colorIdx;
+        const stack=[[x,y]];
+        const group=[];
+        seen[y][x]=true;
+        while(stack.length){
+          const [cx,cy]=stack.pop();
+          group.push([cx,cy]);
+          for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+            const nx=cx+dx,ny=cy+dy;
+            if(nx<0||nx>=CFG.cols||ny<0||ny>=CFG.rows||seen[ny][nx])continue;
+            const n=this.grid[ny][nx];
+            if(n&&!n.dog&&n.colorIdx===color){
+              seen[ny][nx]=true;
+              stack.push([nx,ny]);
+            }
+          }
+        }
+        if(group.length>=CHAIN_CFG.matchMin)groups.push(group);
       }
-      if(full)rows.push(y);
     }
-    return rows;
+    return groups;
   }
 
-  removeRows(rows){
-    const remove=new Set(rows);
-    this.grid=this.grid.filter((_,y)=>!remove.has(y));
-    while(this.grid.length<CFG.rows){
-      this.grid.unshift(Array(CFG.cols).fill(null));
+  expandDogBomb(cells){
+    if(!CHAIN_CFG.dogBomb)return cells;
+    const kill=new Set(cells.map(([x,y])=>x+','+y));
+    const seeds=[...kill].map(s=>s.split(',').map(Number));
+    for(const [x,y] of seeds){
+      for(let dy=-1;dy<=1;dy++){
+        for(let dx=-1;dx<=1;dx++){
+          const nx=x+dx,ny=y+dy;
+          if(nx<0||nx>=CFG.cols||ny<0||ny>=CFG.rows)continue;
+          const c=this.grid[ny][nx];
+          if(c&&c.dog){
+            for(let ddy=-1;ddy<=1;ddy++){
+              for(let ddx=-1;ddx<=1;ddx++){
+                const bx=nx+ddx,by=ny+ddy;
+                if(bx>=0&&bx<CFG.cols&&by>=0&&by<CFG.rows&&this.grid[by][bx]){
+                  kill.add(bx+','+by);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return [...kill].map(s=>s.split(',').map(Number));
+  }
+
+  removeCells(cells){
+    for(const [x,y] of cells){
+      if(x>=0&&x<CFG.cols&&y>=0&&y<CFG.rows)this.grid[y][x]=null;
+    }
+  }
+
+  collapseColumns(){
+    for(let x=0;x<CFG.cols;x++){
+      const kept=[];
+      for(let y=CFG.rows-1;y>=0;y--)if(this.grid[y][x])kept.push(this.grid[y][x]);
+      let i=0;
+      for(let y=CFG.rows-1;y>=0;y--)this.grid[y][x]=i<kept.length?kept[i++]:null;
     }
   }
 
@@ -768,7 +823,7 @@ class TitleScene extends Phaser.Scene{
     this.cameras.main.setBackgroundColor('#eef3f7');
 
     const {width:w,height:h}=this.scale;
-    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 4.2',{
+    this.add.text(w/2,h*.21,'NEKO BLOCKS DX 5.0',{
       fontSize:'39px',fontStyle:'bold',color:'#17212b',stroke:'#fff',strokeThickness:3
     }).setOrigin(.5);
 
@@ -782,11 +837,11 @@ class TitleScene extends Phaser.Scene{
       duration:900,yoyo:true,repeat:-1,ease:'Sine.inOut'
     });
 
-    this.add.text(w/2,h*.54,'ENDLESS PUZZLE',{
+    this.add.text(w/2,h*.54,'COLOR CHAIN PUZZLE',{
       fontSize:'20px',fontStyle:'bold',color:'#263642'
     }).setOrigin(.5);
 
-    this.add.text(w/2,h*.59,'10ラインごとにLEVEL UP',{
+    this.add.text(w/2,h*.59,'同色4個で消去・落下・連鎖！',{
       fontSize:'15px',color:'#566572'
     }).setOrigin(.5);
 
@@ -816,7 +871,7 @@ class GameScene extends Phaser.Scene{
     this.factory=new PieceFactory();
 
     this.score=0;
-    this.lines=0;
+    this.clears=0;
     this.level=1;
     this.stage=1;
     this.lastClearedStage=0;
@@ -850,7 +905,7 @@ class GameScene extends Phaser.Scene{
     this.nextLayer=this.add.container();
 
     this.scoreT=this.add.text(12,12,'SCORE 0',{fontSize:'19px',fontStyle:'bold',color:'#111820'});
-    this.linesT=this.add.text(12,38,'LINES 0',{fontSize:'15px',color:'#111820'});
+    this.linesT=this.add.text(12,38,'CLEAR 0',{fontSize:'15px',color:'#111820'});
     this.levelT=this.add.text(12,60,'LEVEL 1',{fontSize:'14px',fontStyle:'bold',color:'#55636f'});
     this.stageT=this.add.text(this.scale.width/2,34,'STAGE 1 / 10',{fontSize:'14px',fontStyle:'bold',color:'#45525d'}).setOrigin(.5,0);
     this.musicT=this.add.text(this.scale.width/2,54,'BGM: 歓喜の歌 〈REAL AUDIO〉',{fontSize:'11px',fontStyle:'bold',color:'#71808b'}).setOrigin(.5,0);
@@ -859,7 +914,7 @@ class GameScene extends Phaser.Scene{
       fontSize:'14px',fontStyle:'bold',color:'#45525d'
     }).setOrigin(1,0);
 
-    this.add.text(this.scale.width/2,12,'v4.2',{
+    this.add.text(this.scale.width/2,12,'v5.0',{
       fontSize:'12px',fontStyle:'bold',color:'#7b8791'
     }).setOrigin(.5,0);
 
@@ -879,6 +934,8 @@ class GameScene extends Phaser.Scene{
       fontSize:'44px',fontStyle:'bold',color:'#17212b',stroke:'#fff',strokeThickness:5
     }).setOrigin(.5).setDepth(70).setVisible(false);
 
+    this.factory.setStage(this.currentStage());
+    this.factory.setStage(this.currentStage());
     this.next=this.factory.create();
     this.applyStageTheme();
     this.spawn();
@@ -915,7 +972,7 @@ class GameScene extends Phaser.Scene{
   }
 
   currentStage(){
-    return Math.min(10,Math.floor(this.lines/10)+1);
+    return Math.min(10,Math.floor(this.clears/10)+1);
   }
 
   applyStageTheme(){
@@ -933,10 +990,12 @@ class GameScene extends Phaser.Scene{
   }
 
   spawn(){
+    this.factory.setStage(this.currentStage());
     this.piece=this.next;
     this.piece.x=Math.floor((CFG.cols-this.piece.shape[0].length)/2);
     this.piece.y=-1;
 
+    this.factory.setStage(this.currentStage());
     this.next=this.factory.create();
 
     this.fallTimer=0;
@@ -1028,262 +1087,156 @@ class GameScene extends Phaser.Scene{
       this.locking=false;
       return;
     }
-
     this.board.lock(this.piece);
     AUDIO.land();
     this.piece.dog?AUDIO.bark():AUDIO.meow();
-
-    const rows=this.board.fullRows();
-
-    if(rows.length){
-      this.startClear(rows);
-    }else{
-      this.combo=-1;
-      this.locking=false;
-      this.spawn();
-    }
+    this.piece=null;
+    this.locking=false;
+    this.resolveChains(1);
   }
 
-  startClear(rows){
-    this.clearing=true;
-    this.combo++;
+  resolveChains(chainNo=1){
+    const groups=this.board.findColorGroups();
 
-    AUDIO.clearImpact(rows.length,this.combo);
-    this.showClearLabel(rows.length);
-
-    if(this.combo>0)this.showCombo();
-    if(rows.length===4){this.lightningQuakeFX(rows);this.fourLineFX();}
-
-    const overlays=[];
-
-    for(const row of rows){
-      this.rowFX(row,rows.length);
-
-      for(let x=0;x<CFG.cols;x++){
-        const cell=this.board.grid[row][x];
-        if(!cell)continue;
-
-        const key=cell.dog?'dog':'cat'+cell.idx;
-        const sp=this.add.image(
-          this.bx+x*CFG.cell+CFG.cell/2,
-          this.by+row*CFG.cell+CFG.cell/2,
-          key
-        ).setDepth(40);
-        if(this.currentStage()===10)sp.setTint(cell.dog?0xffd54f:0xffc928);
-
-        overlays.push(sp);
-
-        this.tweens.add({
-          targets:sp,
-          scaleX:1.22,
-          scaleY:1.22,
-          alpha:1,
-          duration:90,
-          ease:'Quad.easeOut',
-          onComplete:()=>{
-            this.tweens.add({
-              targets:sp,
-              scaleX:.16,
-              scaleY:.16,
-              alpha:0,
-              duration:135,
-              ease:'Back.easeIn',
-              onComplete:()=>sp.destroy()
-            });
-          }
-        });
-      }
-    }
-
-    const base=[0,100,300,500,800][rows.length]||1000;
-    this.score+=Math.round(base*(1+Math.max(0,this.combo)*.25)*this.level);
-
-    const previousLevel=this.level;
-    const previousStage=this.currentStage();
-    this.lines+=rows.length;
-    this.level=1+Math.floor(this.lines/10);
-
-    const clearedStage=Math.min(10,Math.floor(this.lines/10));
-    const stageJustCleared=clearedStage>this.lastClearedStage;
-    if(stageJustCleared)this.lastClearedStage=clearedStage;
-
-    this.updateHUD();
-
-    // 先に盤面データを更新し、230ms後に描画と次ピースを進める
-    this.board.removeRows(rows);
-
-    this.piece=null;
-    this.activeLayer.removeAll(true);
-    this.ghostLayer.removeAll(true);
-
-    if(this.level>previousLevel)this.levelUpFX();
-
-    this.applyStageTheme();
-
-    this.time.delayedCall(230,()=>{
+    if(!groups.length){
       this.clearing=false;
       this.locking=false;
       this.redraw();
-
-      if(stageJustCleared){
-        this.showStageClearCutin(clearedStage);
-      }
-
-      if(clearedStage>=10){
-        return;
-      }
-
       if(!this.ended)this.spawn();
-    });
-  }
+      return;
+    }
 
-  showStageClearCutin(stageNumber){
-    this.paused=true;
+    this.clearing=true;
 
-    const msg=STAGE_CLEAR_MESSAGES[stageNumber]||'制覇';
-    const {width:w,height:h}=this.scale;
-    const gold=stageNumber===10;
-    const accent=gold?0xffd54f:0x7ee8ff;
+    let cells=[];
+    for(const group of groups)cells.push(...group);
+    cells=this.board.expandDogBomb(cells);
 
-    // brief hit-stop
-    this.cameras.main.shake(90,.006);
+    const uniq=[...new Set(cells.map(([x,y])=>x+','+y))]
+      .map(s=>s.split(',').map(Number));
 
-    const shade=this.add.rectangle(w/2,h/2,w,h,0x05080c,0).setDepth(90);
-    this.tweens.add({targets:shade,alpha:.56,duration:90,ease:'Linear'});
+    const multiplier=Math.pow(2,Math.max(0,chainNo-1));
+    this.score+=uniq.length*20*multiplier*this.level;
+    this.clears+=1;
+    this.level=1+Math.floor(this.clears/10);
 
-    // diagonal anime band
-    const band=this.add.rectangle(w/2,h/2,w*1.65,176,gold?0x3a2b00:0x101a24,.94)
-      .setDepth(91).setAngle(-12).setScale(0,1);
-    this.tweens.add({
-      targets:band,scaleX:1,duration:180,ease:'Cubic.easeOut'
-    });
+    this.showChainLabel(chainNo,uniq.length);
+    AUDIO.clearImpact(Math.min(4,Math.max(1,Math.ceil(uniq.length/4))),chainNo-1);
 
-    // manga speed lines radiating around center
-    const speedLines=[];
-    for(let i=0;i<34;i++){
-      const a=(i/34)*Math.PI*2+(Math.random()-.5)*.08;
-      const len=90+Math.random()*150;
-      const r=125+Math.random()*75;
-      const x=w/2+Math.cos(a)*r;
-      const y=h/2+Math.sin(a)*r;
-      const line=this.add.rectangle(
-        x,y,len,1.5+Math.random()*2.4,
-        gold?0xffe082:0xcaf5ff,.0
-      ).setDepth(92).setAngle(Phaser.Math.RadToDeg(a));
-      speedLines.push(line);
+    if(chainNo>=2)this.cameras.main.shake(160,.006+Math.min(.010,(chainNo-2)*.002));
+    if(chainNo>=3)this.chainLightningFX(chainNo,uniq);
+    if(chainNo>=5)this.chainFinisherFX(chainNo);
+
+    for(const [x,y] of uniq){
+      const cell=this.board.grid[y][x];
+      if(!cell)continue;
+      const key=cell.dog?'dog':'cat'+(cell.colorIdx??0);
+      const sp=this.add.image(
+        this.bx+x*CFG.cell+CFG.cell/2,
+        this.by+y*CFG.cell+CFG.cell/2,
+        key
+      ).setDepth(45);
+
       this.tweens.add({
-        targets:line,alpha:.75,scaleX:{from:.15,to:1},
-        duration:120+Math.random()*130,ease:'Quad.easeOut'
+        targets:sp,
+        scaleX:1.30,scaleY:1.30,
+        duration:90,ease:'Quad.easeOut',
+        onComplete:()=>{
+          this.tweens.add({
+            targets:sp,scaleX:.08,scaleY:.08,alpha:0,
+            duration:150,ease:'Back.easeIn',
+            onComplete:()=>sp.destroy()
+          });
+        }
       });
     }
 
-    const small=this.add.text(w/2,h/2-95,'STAGE '+stageNumber+' CLEAR!',{
-      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:'24px',fontStyle:'bold',
-      color:gold?'#ffe082':'#e9fbff',
-      stroke:'#000000',strokeThickness:5
-    }).setOrigin(.5).setDepth(95).setAlpha(0).setAngle(-5);
+    this.time.delayedCall(170,()=>{
+      this.board.removeCells(uniq);
+      this.board.collapseColumns();
+      this.updateHUD();
+      this.applyStageTheme();
+      this.redraw();
 
-    const shadow=this.add.text(w/2+11,h/2+11,msg,{
-      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:'176px',fontStyle:'bold',
-      color:'#000000',stroke:'#000000',strokeThickness:15
-    }).setOrigin(.5).setDepth(94).setAlpha(.0).setAngle(-9);
+      const clearedStage=Math.min(10,Math.floor(this.clears/10));
+      const stageJustCleared=clearedStage>this.lastClearedStage;
+      if(stageJustCleared)this.lastClearedStage=clearedStage;
 
-    const text=this.add.text(w/2,h/2,msg,{
-      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:'176px',fontStyle:'bold',
-      color:gold?'#ffd54f':'#ffffff',
-      stroke:gold?'#6c4b00':'#0d3850',
-      strokeThickness:14,
-      shadow:{offsetX:0,offsetY:0,color:gold?'#ffab00':'#4ddfff',blur:18,fill:true},
-      padding:{left:28,right:28,top:18,bottom:18}
-    }).setOrigin(.5).setDepth(96).setScale(2.7).setAlpha(0).setAngle(-9);
+      this.time.delayedCall(220,()=>{
+        if(stageJustCleared)this.showStageClearCutin(clearedStage);
 
-    // slash streaks
-    const slash1=this.add.rectangle(w/2,h/2,w*1.3,8,accent,.0).setDepth(97).setAngle(-24);
-    const slash2=this.add.rectangle(w/2,h/2+18,w*1.15,3,0xffffff,.0).setDepth(97).setAngle(-24);
-
-    this.time.delayedCall(70,()=>{
-      this.cameras.main.flash(85,255,255,255);
-      this.tweens.add({targets:small,alpha:1,y:small.y-8,duration:180,ease:'Back.easeOut'});
-      this.tweens.add({
-        targets:[text,shadow],
-        alpha:1,scale:1,duration:260,ease:'Back.easeOut'
-      });
-      this.tweens.add({
-        targets:slash1,alpha:.85,scaleX:{from:.05,to:1},duration:130,ease:'Cubic.easeOut'
-      });
-      this.tweens.add({
-        targets:slash2,alpha:1,scaleX:{from:.05,to:1},duration:100,delay:35,ease:'Cubic.easeOut'
-      });
-    });
-
-    // hold for readability, then shoot diagonally up-left with afterimage feel
-    this.time.delayedCall(1050,()=>{
-      const ghost1=this.add.text(text.x+18,text.y+12,msg,{
-        fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-        fontSize:'176px',fontStyle:'bold',
-        color:gold?'#ffd54f':'#73e6ff',
-        stroke:'#000000',strokeThickness:10
-      }).setOrigin(.5).setDepth(93).setAlpha(.32).setAngle(-9);
-
-      const ghost2=this.add.text(text.x+34,text.y+24,msg,{
-        fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-        fontSize:'176px',fontStyle:'bold',
-        color:'#ffffff',stroke:'#000000',strokeThickness:8
-      }).setOrigin(.5).setDepth(92).setAlpha(.16).setAngle(-9);
-
-      const targets=[text,shadow,ghost1,ghost2];
-      this.tweens.add({
-        targets,
-        x:-text.width*.7,
-        y:-text.height*.55,
-        alpha:0,
-        duration:850,
-        ease:'Cubic.easeIn'
-      });
-
-      this.tweens.add({
-        targets:[small,band,slash1,slash2,shade,...speedLines],
-        alpha:0,duration:520,ease:'Sine.easeIn',
-        onComplete:()=>{
-          text.destroy();shadow.destroy();ghost1.destroy();ghost2.destroy();
-          small.destroy();band.destroy();slash1.destroy();slash2.destroy();shade.destroy();
-          speedLines.forEach(o=>o.destroy());
-          if(stageNumber===10)this.showMasterClear();
-          else this.paused=false;
+        if(clearedStage>=10){
+          this.clearing=false;
+          return;
         }
+
+        this.resolveChains(chainNo+1);
       });
     });
   }
 
-  showMasterClear(){
+  showChainLabel(chainNo,count){
+    const txt=chainNo===1?`${count} MATCH!`:`${chainNo} CHAIN!`;
+    this.clearT.setText(txt).setAlpha(1).setScale(.72).setY(this.by+165);
+    this.tweens.killTweensOf(this.clearT);
+    this.tweens.add({
+      targets:this.clearT,
+      scale:chainNo>=3?1.30:1.06,
+      y:this.clearT.y-18,
+      duration:160,ease:'Back.easeOut',
+      hold:220,yoyo:true,
+      onComplete:()=>this.clearT.setAlpha(0)
+    });
+  }
+
+  chainLightningFX(chainNo,cells){
+    const avgX=cells.reduce((s,p)=>s+p[0],0)/cells.length;
+    const avgY=cells.reduce((s,p)=>s+p[1],0)/cells.length;
+    const tx=this.bx+avgX*CFG.cell+CFG.cell/2;
+    const ty=this.by+avgY*CFG.cell+CFG.cell/2;
+
+    this.cameras.main.flash(90,215,245,255);
+
+    const bolt=this.add.graphics().setDepth(72);
+    const pts=[];
+    let x=tx+(Math.random()-.5)*120;
+    pts.push({x,y:this.by-55});
+    for(let i=1;i<9;i++){
+      const t=i/9;
+      pts.push({
+        x:Phaser.Math.Linear(x,tx,t)+(Math.random()-.5)*44,
+        y:Phaser.Math.Linear(this.by-55,ty,t)
+      });
+    }
+    pts.push({x:tx,y:ty});
+
+    bolt.lineStyle(3+Math.min(4,chainNo),0xe7fbff,.98);
+    bolt.beginPath();
+    bolt.moveTo(pts[0].x,pts[0].y);
+    for(let i=1;i<pts.length;i++)bolt.lineTo(pts[i].x,pts[i].y);
+    bolt.strokePath();
+
+    const ring=this.add.circle(tx,ty,10).setStrokeStyle(5,0x9be7ff,.95).setDepth(71);
+    this.tweens.add({targets:ring,scale:8+chainNo,alpha:0,duration:380,onComplete:()=>ring.destroy()});
+    this.tweens.add({targets:bolt,alpha:0,duration:260,onComplete:()=>bolt.destroy()});
+  }
+
+  chainFinisherFX(chainNo){
     const {width:w,height:h}=this.scale;
-    this.paused=true;
-    setControlsVisible(false);
-    AUDIO.stopBgm(true);
+    const t=this.add.text(w/2,h*.40,`${chainNo} CHAIN!!`,{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:'54px',fontStyle:'bold',color:'#fff59d',
+      stroke:'#000',strokeThickness:8
+    }).setOrigin(.5).setDepth(90).setScale(.4);
 
-    const shade=this.add.rectangle(w/2,h/2,w,h,0x000000,.86).setDepth(110);
-    this.add.text(w/2,h*.38,'10 STAGES COMPLETE!',{
-      fontSize:'36px',fontStyle:'bold',color:'#ffd54f',
-      stroke:'#000000',strokeThickness:6
-    }).setOrigin(.5).setDepth(111);
+    this.cameras.main.flash(130,255,244,180);
+    this.cameras.main.shake(300,.015);
 
-    this.add.text(w/2,h*.50,'100 LINE CLEAR\n完全制覇！',{
-      fontSize:'24px',fontStyle:'bold',color:'#ffffff',
-      align:'center',lineSpacing:8
-    }).setOrigin(.5).setDepth(111);
-
-    const retry=this.add.rectangle(w/2,h*.66,200,54,0xffd54f).setDepth(111).setInteractive();
-    this.add.text(w/2,h*.66,'PLAY AGAIN',{
-      fontSize:'18px',fontStyle:'bold',color:'#111820'
-    }).setOrigin(.5).setDepth(112);
-
-    retry.on('pointerdown',()=>{
-      setControlsVisible(true);
-      AUDIO.startBgm(1);
-      this.scene.restart();
+    this.tweens.add({
+      targets:t,scale:1.22,y:t.y-36,
+      duration:220,ease:'Back.easeOut',
+      hold:420,yoyo:true,
+      onComplete:()=>t.destroy()
     });
   }
 
@@ -1555,15 +1508,15 @@ class GameScene extends Phaser.Scene{
   }
 
   makeSprite(cell,x,y,alpha=1){
-    const key=cell.dog?'dog':'cat'+cell.idx;
+    const colorIdx=(cell.colorIdx??cell.idx??0)%COLORS.length;
+    const key=cell.dog?'dog':'cat'+colorIdx;
     const sp=this.add.image(
       this.bx+x*CFG.cell+CFG.cell/2,
       this.by+y*CFG.cell+CFG.cell/2,
       key
     ).setAlpha(alpha);
-
-    if(this.currentStage()===10){
-      sp.setTint(cell.dog?0xffd54f:0xffc928);
+    if(this.currentStage()===10&&!cell.dog){
+      sp.setTint(0xfff1a8);
     }
     return sp;
   }
@@ -1590,7 +1543,7 @@ class GameScene extends Phaser.Scene{
 
           if(gy+y>=0){
             const sp=this.makeSprite(
-              {idx:this.piece.idx,dog:false},
+              {idx:this.piece.idx,colorIdx:this.piece.colorIdx,dog:false},
               this.piece.x+x,
               gy+y,
               .09
@@ -1615,7 +1568,7 @@ class GameScene extends Phaser.Scene{
       for(let x=0;x<this.next.shape[y].length;x++){
         if(!this.next.shape[y][x])continue;
 
-        const key=this.next.dog?'dog':'cat'+this.next.idx;
+        const key=this.next.dog?'dog':'cat'+this.next.colorIdx;
         this.nextLayer.add(
           this.add.image(ox+x*mini,oy+y*mini,key).setDisplaySize(mini,mini)
         );
@@ -1627,7 +1580,7 @@ class GameScene extends Phaser.Scene{
 
   updateHUD(){
     this.scoreT.setText('SCORE '+this.score);
-    this.linesT.setText('LINES '+this.lines);
+    this.linesT.setText('CLEAR '+this.clears);
     this.levelT.setText('LEVEL '+this.level);
     this.stageT.setText('STAGE '+this.currentStage()+' / 10');
     const stageNo=this.currentStage();
@@ -1697,7 +1650,7 @@ class GameScene extends Phaser.Scene{
     }).setOrigin(.5).setDepth(81);
 
     this.add.text(w/2,h*.47,
-      `SCORE ${this.score}\nLINES ${this.lines}\nLEVEL ${this.level}\nBEST ${this.best}`,
+      `SCORE ${this.score}\nCLEAR ${this.clears}\nLEVEL ${this.level}\nBEST ${this.best}`,
       {fontSize:'18px',align:'center',lineSpacing:8,color:'#fff'}
     ).setOrigin(.5).setDepth(81);
 
