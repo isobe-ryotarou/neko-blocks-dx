@@ -1,31 +1,24 @@
-NEKO BLOCKS DX 5.5.3
+NEKO BLOCKS DX 5.6
 
-- Cat block graphics replaced with the user's custom five-color character set:
-  WHITE / AQUA / YELLOW / BLACK / RED.
-- Images are stored in /assets and preloaded by Phaser.
-- Stage 1 randomly chooses one BGM at each new game/retry:
-  Colonel Bogey / The Entertainer / 12th Street Rag.
-- Stage 7: Jazz Me Blues.
-- Stage 9: The Washington Post March.
-- Stage 10: Battle Hymn of the Republic.
-- Previous stage 2–6 and 8 selections retained.
-- VERSION files consolidated to VERSION.txt only.
-- Cache bust: 550.
+FULL game.js rebuild of the two systems that failed to reflect previously.
 
-- Cat image files are now loaded from the repository root instead of /assets.
-- Intended for the current GitHub mobile upload layout.
-- Cache bust: 551.
+- Stage 1-10 each have a distinct arrival effect:
+  1 rings
+  2 speed lines
+  3 radial sparks
+  4 slash beams
+  5 shockwave
+  6 meteor shower
+  7 pulse rings
+  8 shard burst
+  9 triple lightning
+  10 gold final burst
 
-- Added an original synthesized title-screen BGM.
-- Title BGM begins after the first user tap/key gesture due browser autoplay rules.
-- START fades the title BGM out before Stage 1 BGM begins.
-- Cache bust: 552.
+- Game Over:
+  BGM stops immediately.
+  A stronger two-hit "チャン！チャン！" jingle plays.
+  Then a short Stage 10 demo runs.
+  RETRY appears after the demo.
 
-- Game-over flow changed:
-  1) stop BGM immediately,
-  2) play a short "チャンチャン!" game-over jingle,
-  3) transition into a Stage 10 visual attract/demo,
-  4) show RETRY after the demo.
-- Stage 10 demo uses black/gold presentation, custom cat blocks, simulated chain and lightning.
-- Demo is visual-only; no BGM resumes during the game-over demo.
-- Cache bust: 553.
+- Title visibly shows BUILD 5.6 • STAGE FX REBUILD.
+- Cache bust: 560.

@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.5.3
+  NEKO BLOCKS DX 5.6
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -278,37 +278,55 @@ class AudioEngine{
     }
   }
 
-
   gameOverJingle(){
     this.ensure();
     if(!this.ctx)return;
-    if(this.ctx.state==='suspended')this.ctx.resume().catch(()=>{});
 
-    const ctx=this.ctx;
-    const out=ctx.createGain();
-    out.gain.setValueAtTime(.12,ctx.currentTime);
-    out.connect(ctx.destination);
+    const playJingle=()=>{
+      const ctx=this.ctx;
+      const t0=ctx.currentTime+.04;
 
-    const hit=(freq,start,dur=.16,type='square',vol=.22)=>{
-      const o=ctx.createOscillator();
-      const gg=ctx.createGain();
-      const t=ctx.currentTime+start;
-      o.type=type;
-      o.frequency.setValueAtTime(freq,t);
-      gg.gain.setValueAtTime(.0001,t);
-      gg.gain.exponentialRampToValueAtTime(vol,t+.01);
-      gg.gain.exponentialRampToValueAtTime(.0001,t+dur);
-      o.connect(gg).connect(out);
-      o.start(t);o.stop(t+dur+.03);
+      const master=ctx.createGain();
+      master.gain.setValueAtTime(.42,t0);
+      master.gain.exponentialRampToValueAtTime(.20,t0+.85);
+      master.connect(ctx.destination);
+
+      const hit=(f,offset,dur,vol,type='square')=>{
+        const o=ctx.createOscillator();
+        const gg=ctx.createGain();
+        const t=t0+offset;
+        o.type=type;
+        o.frequency.setValueAtTime(f,t);
+        o.frequency.exponentialRampToValueAtTime(Math.max(60,f*.82),t+dur);
+        gg.gain.setValueAtTime(.0001,t);
+        gg.gain.exponentialRampToValueAtTime(vol,t+.008);
+        gg.gain.exponentialRampToValueAtTime(.0001,t+dur);
+        o.connect(gg).connect(master);
+        o.start(t);
+        o.stop(t+dur+.04);
+      };
+
+      // 明確な「チャン！　チャン！」
+      hit(523.25,.00,.20,.44,'square');
+      hit(392.00,.00,.22,.28,'triangle');
+      hit(261.63,.01,.25,.22,'sine');
+
+      hit(440.00,.36,.24,.46,'square');
+      hit(329.63,.36,.25,.30,'triangle');
+      hit(220.00,.37,.28,.24,'sine');
+
+      // アタックを強くする小さな高音
+      hit(1046.50,.00,.055,.14,'square');
+      hit(880.00,.36,.060,.14,'square');
+
+      setTimeout(()=>{try{master.disconnect()}catch{}},1200);
     };
 
-    // "チャン・チャン！" — two short descending arcade hits.
-    hit(392.00,.00,.17,'square',.22);
-    hit(293.66,.03,.17,'triangle',.12);
-    hit(329.63,.30,.22,'square',.24);
-    hit(246.94,.33,.22,'triangle',.13);
-
-    setTimeout(()=>{try{out.disconnect()}catch{}},800);
+    if(this.ctx.state==='suspended'){
+      this.ctx.resume().then(playJingle).catch(playJingle);
+    }else{
+      playJingle();
+    }
   }
 
   setStage(stage){
@@ -702,7 +720,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.5.3.2',{
+    this.add.text(w/2,575,'BUILD 5.6.2',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -756,6 +774,7 @@ class GameScene extends Phaser.Scene{
     this.buildUI();
     this.bindControls();
     this.applyTheme();
+    this.stageArrivalFX(1);
 
     this.factory.setStage(1);
     this.next=this.factory.create();
@@ -1171,6 +1190,182 @@ class GameScene extends Phaser.Scene{
     });
   }
 
+
+  stageArrivalFX(stage){
+    const w=this.scale.width;
+    const cx=w/2;
+    const cy=this.by+CFG.boardH*.43;
+
+    const colors=[
+      0x56b4e9,0x56d9f5,0xf0e442,0xffffff,0xffc266,
+      0xc8b4ff,0xcc79a7,0x9adfff,0xffffff,0xffd54f
+    ];
+    const col=colors[Math.max(0,Math.min(9,stage-1))];
+
+    this.cameras.main.flash(90+stage*7,
+      (col>>16)&255,(col>>8)&255,col&255
+    );
+    this.cameras.main.shake(110+stage*8,.003+stage*.0005);
+
+    // stage 1: concentric rings
+    if(stage===1){
+      for(let i=0;i<3;i++){
+        const r=this.add.circle(cx,cy,16).setStrokeStyle(3,col,.86).setDepth(112);
+        this.tweens.add({
+          targets:r,scale:4.5+i*1.5,alpha:0,
+          duration:500+i*120,delay:i*70,
+          ease:'Cubic.easeOut',onComplete:()=>r.destroy()
+        });
+      }
+    }
+
+    // stage 2: horizontal speed lines
+    if(stage===2){
+      for(let i=0;i<18;i++){
+        const y=this.by+30+Math.random()*(CFG.boardH-60);
+        const s=this.add.rectangle(-90,y,80+Math.random()*90,2,col,.68).setDepth(112);
+        this.tweens.add({
+          targets:s,x:w+120,alpha:0,
+          duration:300+Math.random()*260,delay:Math.random()*170,
+          ease:'Cubic.easeOut',onComplete:()=>s.destroy()
+        });
+      }
+    }
+
+    // stage 3: radial sparks
+    if(stage===3){
+      for(let i=0;i<26;i++){
+        const a=i/26*Math.PI*2;
+        const p=this.add.circle(cx,cy,2.3,col,.95).setDepth(112);
+        this.tweens.add({
+          targets:p,
+          x:cx+Math.cos(a)*(100+Math.random()*95),
+          y:cy+Math.sin(a)*(100+Math.random()*95),
+          alpha:0,scale:.2,
+          duration:520+Math.random()*250,
+          ease:'Quad.easeOut',onComplete:()=>p.destroy()
+        });
+      }
+    }
+
+    // stage 4: diagonal slash barrage
+    if(stage===4){
+      for(let i=0;i<6;i++){
+        const b=this.add.rectangle(-120,cy-160+i*60,260,6,col,.62)
+          .setAngle(-24).setDepth(112);
+        this.tweens.add({
+          targets:b,x:w+160,alpha:0,
+          duration:430,delay:i*80,
+          ease:'Cubic.easeOut',onComplete:()=>b.destroy()
+        });
+      }
+    }
+
+    // stage 5: impact shockwave
+    if(stage===5){
+      const disk=this.add.circle(cx,cy,20,col,.17).setDepth(111);
+      const ring=this.add.circle(cx,cy,24).setStrokeStyle(6,col,.96).setDepth(112);
+      this.tweens.add({targets:disk,scale:11,alpha:0,duration:650,onComplete:()=>disk.destroy()});
+      this.tweens.add({targets:ring,scale:8,alpha:0,duration:560,onComplete:()=>ring.destroy()});
+    }
+
+    // stage 6: meteor shower
+    if(stage===6){
+      for(let i=0;i<22;i++){
+        const p=this.add.rectangle(
+          this.bx+Math.random()*CFG.boardW,
+          this.by-60-Math.random()*170,
+          2,20+Math.random()*24,col,.72
+        ).setAngle(18).setDepth(112);
+        this.tweens.add({
+          targets:p,
+          x:p.x+70,y:this.by+CFG.boardH+60,alpha:0,
+          duration:650+Math.random()*480,delay:Math.random()*220,
+          onComplete:()=>p.destroy()
+        });
+      }
+    }
+
+    // stage 7: pulse rings
+    if(stage===7){
+      for(let i=0;i<4;i++){
+        const r=this.add.circle(cx,cy,18).setStrokeStyle(4,col,.92).setDepth(112);
+        this.tweens.add({
+          targets:r,scale:3.2+i*1.5,alpha:0,
+          duration:470+i*100,delay:i*55,
+          onComplete:()=>r.destroy()
+        });
+      }
+    }
+
+    // stage 8: shard burst
+    if(stage===8){
+      for(let i=0;i<22;i++){
+        const a=Math.random()*Math.PI*2;
+        const s=this.add.triangle(cx,cy,0,0,5,20,10,0,col,.82)
+          .setAngle(Phaser.Math.RadToDeg(a)+90).setDepth(112);
+        this.tweens.add({
+          targets:s,
+          x:cx+Math.cos(a)*(90+Math.random()*130),
+          y:cy+Math.sin(a)*(90+Math.random()*130),
+          alpha:0,scale:.35,
+          duration:560+Math.random()*240,
+          onComplete:()=>s.destroy()
+        });
+      }
+    }
+
+    // stage 9: triple lightning
+    if(stage===9){
+      const lg=this.add.graphics().setDepth(114);
+      lg.lineStyle(4,col,1);
+      for(const off of [-70,0,70]){
+        lg.beginPath();
+        let px=cx+off;
+        lg.moveTo(px,this.by-10);
+        for(let i=1;i<=8;i++){
+          px+=(Math.random()-.5)*28;
+          lg.lineTo(px,this.by+i*(CFG.boardH/8));
+        }
+        lg.strokePath();
+      }
+      this.tweens.add({targets:lg,alpha:0,duration:340,onComplete:()=>lg.destroy()});
+    }
+
+    // stage 10: final gold burst + ring
+    if(stage===10){
+      for(let i=0;i<34;i++){
+        const a=i/34*Math.PI*2;
+        const p=this.add.circle(cx,cy,1.8+Math.random()*2.4,0xffd54f,.98).setDepth(114);
+        this.tweens.add({
+          targets:p,
+          x:cx+Math.cos(a)*(125+Math.random()*115),
+          y:cy+Math.sin(a)*(125+Math.random()*115),
+          alpha:0,scale:.25,
+          duration:650+Math.random()*260,
+          onComplete:()=>p.destroy()
+        });
+      }
+      const ring=this.add.circle(cx,cy,28).setStrokeStyle(7,0xffd54f,.98).setDepth(113);
+      this.tweens.add({targets:ring,scale:7,alpha:0,duration:640,onComplete:()=>ring.destroy()});
+    }
+
+    const label=this.add.text(cx,this.by+28,`STAGE ${stage}`,{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:stage===10?'34px':'28px',
+      fontStyle:'bold',
+      color:stage===10?'#ffd54f':'#ffffff',
+      stroke:'#000000',strokeThickness:7
+    }).setOrigin(.5).setDepth(116).setScale(.55).setAlpha(0);
+
+    this.tweens.add({
+      targets:label,alpha:1,scale:1,
+      duration:230,ease:'Back.easeOut',
+      hold:380,yoyo:true,
+      onComplete:()=>label.destroy()
+    });
+  }
+
   enterStage(newStage){
     this.stageCutin=true;
     this.state='STAGE_CUTIN';
@@ -1181,6 +1376,7 @@ class GameScene extends Phaser.Scene{
     AUDIO.setStage(newStage);
     this.applyTheme();
     this.updateHUD();
+    this.stageArrivalFX(newStage);
 
     this.showStageCutin(clearedStage,()=>{
       this.stageCutin=false;
@@ -1464,44 +1660,36 @@ class GameScene extends Phaser.Scene{
     this.ended=true;
     this.state='GAME_OVER';
 
-    // Stop any music immediately, then play the short arcade ending sting.
+    // Music must stop immediately.
     AUDIO.pause();
     AUDIO.stop();
     AUDIO.stopTitleMusic(0);
+
+    // Then the short "チャンチャン!" jingle.
     AUDIO.gameOverJingle();
 
     const w=this.scale.width,h=this.scale.height;
+    const shade=this.add.rectangle(w/2,h/2,w,h,0x000000,.80).setDepth(160);
 
-    const shade=this.add.rectangle(w/2,h/2,w,h,0x000000,.78).setDepth(160);
-
-    const over=this.add.text(w/2,h*.38,'GAME OVER',{
+    const over=this.add.text(w/2,h*.39,'GAME OVER',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'44px',color:'#ffffff',
       stroke:'#000000',strokeThickness:7
-    }).setOrigin(.5).setDepth(161).setAlpha(0).setScale(.65);
+    }).setOrigin(.5).setDepth(161).setScale(.7).setAlpha(0);
 
-    const stat=this.add.text(w/2,h*.51,
+    const stat=this.add.text(w/2,h*.52,
       `SCORE ${this.score}
 CLEAR ${this.clears}
 STAGE ${this.stage}`,
       {align:'center',fontSize:'18px',color:'#ffffff',lineSpacing:8}
     ).setOrigin(.5).setDepth(161).setAlpha(0);
 
-    this.tweens.add({
-      targets:over,alpha:1,scale:1,
-      duration:260,ease:'Back.easeOut'
-    });
+    this.tweens.add({targets:over,alpha:1,scale:1,duration:260,ease:'Back.easeOut'});
+    this.tweens.add({targets:stat,alpha:1,duration:300,delay:150});
 
-    this.tweens.add({
-      targets:stat,alpha:1,
-      duration:320,delay:160
-    });
-
-    // Short hold after the "チャンチャン!" sting, then run a Stage 10 attract/demo.
     this.time.delayedCall(1150,()=>{
       this.tweens.add({
-        targets:[over,stat,shade],
-        alpha:0,duration:360,
+        targets:[over,stat,shade],alpha:0,duration:320,
         onComplete:()=>{
           over.destroy();stat.destroy();shade.destroy();
           this.playStage10Demo();
@@ -1513,55 +1701,24 @@ STAGE ${this.stage}`,
   playStage10Demo(){
     const w=this.scale.width,h=this.scale.height;
 
-    // Dark final-stage presentation.
+    this.cameras.main.setBackgroundColor('#000000');
+
     const bg=this.add.rectangle(w/2,h/2,w,h,0x000000,1).setDepth(170);
     const frame=this.add.rectangle(
       this.bx+CFG.boardW/2,
       this.by+CFG.boardH/2,
       CFG.boardW,CFG.boardH,
-      0x070707,.98
+      0x070707,.99
     ).setStrokeStyle(3,0xffd54f,1).setDepth(171);
 
     const title=this.add.text(w/2,24,'STAGE 10  DEMO',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'22px',fontStyle:'bold',
-      color:'#ffd54f',
-      stroke:'#000000',strokeThickness:5
-    }).setOrigin(.5,0).setDepth(176).setAlpha(0);
+      color:'#ffd54f',stroke:'#000000',strokeThickness:5
+    }).setOrigin(.5,0).setDepth(178);
 
-    const sub=this.add.text(w/2,53,'FINAL CHAIN',{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'11px',fontStyle:'bold',
-      color:'#f6e7a8'
-    }).setOrigin(.5,0).setDepth(176).setAlpha(0);
-
-    this.tweens.add({targets:[title,sub],alpha:1,duration:300});
-
-    // Gold rising particles.
-    const sparks=[];
-    for(let i=0;i<28;i++){
-      const p=this.add.circle(
-        this.bx+10+Math.random()*(CFG.boardW-20),
-        this.by+CFG.boardH+Math.random()*80,
-        1+Math.random()*2,
-        i%4===0?0xffffff:0xffd54f,
-        .25+Math.random()*.55
-      ).setDepth(172);
-      sparks.push(p);
-      this.tweens.add({
-        targets:p,
-        y:this.by-20,
-        x:p.x+(Math.random()-.5)*45,
-        duration:2200+Math.random()*2200,
-        delay:Math.random()*700,
-        repeat:-1,ease:'Sine.easeIn'
-      });
-    }
-
-    // Build a stylized stack from the five cat assets.
-    const demo=[];
-    const colorKeys=['cat0','cat1','cat2','cat3','cat4'];
-
+    const demoBlocks=[];
+    const keys=['cat0','cat1','cat2','cat3','cat4'];
     const layout=[
       [0,19,0],[1,19,1],[2,19,2],[3,19,3],[4,19,4],[5,19,0],[6,19,2],[7,19,1],[8,19,3],[9,19,4],
       [0,18,1],[1,18,1],[2,18,2],[3,18,4],[4,18,4],[5,18,0],[6,18,0],[7,18,2],[8,18,3],[9,18,3],
@@ -1570,61 +1727,67 @@ STAGE ${this.stage}`,
       [3,15,4],[4,15,0],[5,15,1],[6,15,3]
     ];
 
-    for(const [x,y,c] of layout){
+    layout.forEach(([x,y,c],i)=>{
       const sp=this.add.image(
         this.bx+x*CFG.cell+CFG.cell/2,
         this.by+y*CFG.cell+CFG.cell/2,
-        colorKeys[c]
+        keys[c]
       ).setDisplaySize(CFG.cell,CFG.cell).setDepth(174).setAlpha(0);
-
-      const glow=this.add.image(sp.x,sp.y,colorKeys[c])
-        .setDisplaySize(CFG.cell*1.08,CFG.cell*1.08)
-        .setTint(0xffd54f)
-        .setAlpha(.16)
-        .setBlendMode(Phaser.BlendModes.ADD)
-        .setDepth(173);
-
-      demo.push(sp,glow);
+      demoBlocks.push(sp);
 
       this.tweens.add({
-        targets:sp,alpha:1,y:sp.y-6,
-        duration:260+Math.random()*220,
-        delay:180+y*6,
-        yoyo:true,
-        ease:'Sine.easeOut'
+        targets:sp,alpha:1,y:sp.y-5,
+        duration:260+Math.random()*170,delay:i*8,
+        yoyo:true,ease:'Sine.easeOut'
+      });
+    });
+
+    // gold particle field
+    for(let i=0;i<30;i++){
+      const p=this.add.circle(
+        this.bx+Math.random()*CFG.boardW,
+        this.by+CFG.boardH+Math.random()*80,
+        1+Math.random()*2,
+        i%4===0?0xffffff:0xffd54f,
+        .30+Math.random()*.55
+      ).setDepth(172);
+      this.tweens.add({
+        targets:p,
+        y:this.by-25,
+        x:p.x+(Math.random()-.5)*45,
+        duration:2200+Math.random()*1800,
+        delay:Math.random()*700,
+        repeat:-1,ease:'Sine.easeIn'
       });
     }
 
-    // Simulated falling 4-cell piece.
-    this.time.delayedCall(550,()=>{
-      const falling=[];
-      const cols=[2,3,4,5];
-      const keys=['cat2','cat2','cat2','cat2'];
-
-      cols.forEach((cx,i)=>{
+    this.time.delayedCall(620,()=>{
+      const fall=[];
+      for(let i=0;i<4;i++){
         const sp=this.add.image(
-          this.bx+cx*CFG.cell+CFG.cell/2,
-          this.by-25,
-          keys[i]
-        ).setDisplaySize(CFG.cell,CFG.cell).setDepth(178);
-        falling.push(sp);
+          this.bx+(2+i)*CFG.cell+CFG.cell/2,
+          this.by-30,
+          'cat2'
+        ).setDisplaySize(CFG.cell,CFG.cell).setDepth(180);
+        fall.push(sp);
 
         this.tweens.add({
           targets:sp,
-          y:this.by+(14+i%2)*CFG.cell+CFG.cell/2,
-          duration:620+i*45,
+          y:this.by+(14+(i%2))*CFG.cell+CFG.cell/2,
+          duration:620+i*55,
           ease:'Cubic.easeIn'
         });
-      });
+      }
 
-      this.time.delayedCall(720,()=>{
-        falling.forEach(s=>s.destroy());
+      this.time.delayedCall(760,()=>{
+        fall.forEach(s=>s.destroy());
+
+        this.stageArrivalFX(10);
 
         const chain=this.add.text(w/2,h*.42,'4 CHAIN!!',{
           fontFamily:'Arial Black, sans-serif',
-          fontSize:'48px',fontStyle:'bold',
-          color:'#fff59d',
-          stroke:'#000000',strokeThickness:9,
+          fontSize:'50px',fontStyle:'bold',
+          color:'#fff59d',stroke:'#000000',strokeThickness:9,
           shadow:{offsetX:0,offsetY:0,color:'#ffd54f',blur:14,fill:true}
         }).setOrigin(.5).setDepth(190).setScale(.3).setAlpha(0);
 
@@ -1632,36 +1795,15 @@ STAGE ${this.stage}`,
         this.cameras.main.shake(260,.012);
 
         this.tweens.add({
-          targets:chain,alpha:1,scale:1.1,y:chain.y-26,
+          targets:chain,alpha:1,scale:1.12,y:chain.y-28,
           duration:260,ease:'Back.easeOut',
-          hold:450,yoyo:true,
+          hold:460,yoyo:true,
           onComplete:()=>chain.destroy()
-        });
-
-        // lightning strike
-        const bolt=this.add.graphics().setDepth(189);
-        bolt.lineStyle(5,0xffffff,1);
-        let sx=w*.74;
-        bolt.beginPath();
-        bolt.moveTo(sx,this.by-25);
-        for(let i=1;i<=8;i++){
-          const t=i/8;
-          bolt.lineTo(
-            Phaser.Math.Linear(sx,w*.48,t)+(Math.random()-.5)*35,
-            Phaser.Math.Linear(this.by-25,h*.58,t)
-          );
-        }
-        bolt.strokePath();
-
-        this.tweens.add({
-          targets:bolt,alpha:0,duration:330,
-          onComplete:()=>bolt.destroy()
         });
       });
     });
 
-    // Demo ends with a retry prompt.
-    this.time.delayedCall(3350,()=>{
+    this.time.delayedCall(3450,()=>{
       const retry=this.add.text(w/2,h*.78,'RETRY',{
         fontFamily:'Arial Black, sans-serif',
         fontSize:'25px',fontStyle:'bold',
@@ -1674,11 +1816,7 @@ STAGE ${this.stage}`,
         fontSize:'12px',color:'#e7d78b'
       }).setOrigin(.5).setDepth(195).setAlpha(0);
 
-      this.tweens.add({
-        targets:[retry,hint],
-        alpha:1,y:'-=8',
-        duration:360,ease:'Cubic.easeOut'
-      });
+      this.tweens.add({targets:[retry,hint],alpha:1,y:'-=8',duration:360,ease:'Cubic.easeOut'});
 
       retry.on('pointerdown',()=>{
         retry.setScale(.94).setAlpha(.72);
