@@ -49,3 +49,15 @@ body{
   #left{left:7%}#rotate{left:7%}
   #drop{right:7%}#right{right:7%}#down{right:7%}#pause{right:7%}
 }
+
+
+/* 5.3 tactile button feedback */
+.ctrl{
+  transition:filter .055s linear, transform .055s linear, opacity .055s linear;
+  -webkit-tap-highlight-color:transparent;
+}
+.ctrl.is-pressed{
+  filter:brightness(.40);
+  opacity:.72;
+  transform:scale(.94);
+}

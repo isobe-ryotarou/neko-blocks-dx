@@ -1,0 +1,14 @@
+NEKO BLOCKS DX 5.3 FULL REBUILD
+
+- game.js rebuilt from scratch.
+- Piece state is now a colored matrix, not separate shape + color arrays.
+- Rotation rotates the full colored matrix.
+- Four clockwise rotations return every tetromino to exactly the original colored arrangement.
+- Red and green are absent from the gameplay palette.
+- Palette: blue, sky blue, yellow, purple-pink, orange, gray.
+- Every color also has a unique symbol.
+- Stage 1 BGM: Chopin Heroic Polonaise Op.53.
+- Stage 2 BGM: Radetzky March.
+- Stage 3 BGM: Mozart Requiem, Dies irae.
+- Control buttons visibly darken while pressed.
+- Cache bust: v=530.

@@ -1,29 +1,39 @@
 
 'use strict';
 
+/*
+  NEKO BLOCKS DX 5.3
+  COLOR CHAIN full rebuild.
+  Key design rule: a falling piece is a MATRIX OF COLORS.
+  Rotation rotates that colored matrix itself, so four 90-degree rotations
+  always return the piece to its original state.
+*/
+
 const CFG={
   cols:10,
   rows:20,
   cell:26,
   boardW:260,
   boardH:520,
-  lockDelay:420,
-  spawnDelay:110,
-  dogChance:.07,
-  clearAnimMs:250,
-  gravityAnimMs:210
+  lockDelay:380,
+  spawnDelay:120,
+  clearDelay:230,
+  gravityDelay:190,
+  dogChance:.06
 };
 
+// Color-blind-conscious palette:
+// NO red and NO green.
 const COLORS=[
   0x0072b2, // blue
   0x56b4e9, // sky blue
   0xf0e442, // yellow
   0xcc79a7, // purple-pink
   0xe69f00, // orange
-  0x7a7a7a  // gray
+  0x6b6b6b  // gray
 ];
 
-const SHAPES=[
+const SHAPE_MASKS=[
   [[1,1,1],[0,1,0]],      // T
   [[1,1],[1,1]],          // O
   [[1,1,0],[0,1,1]],      // Z
@@ -35,23 +45,23 @@ const SHAPES=[
 
 const PIECE_WEIGHTS=[13.45,13.45,13.45,13.45,19.30,13.45,13.45];
 
-const STAGE_CLEAR_MESSAGES=['','達人','天才','神域','怪物','無双','伝説','覚醒','極限','王者','制覇'];
+const STAGE_MESSAGES=['','達人','天才','神域','怪物','無双','伝説','覚醒','極限','王者','制覇'];
 
 const REAL_BGM={
   1:{
     title:'ショパン：英雄ポロネーズ Op.53',
     url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Chopin_-_Polonaise_Op._53.oga',
-    rate:1.08, volume:.98
+    rate:1.06, volume:.98
   },
   2:{
     title:'ラデツキー行進曲',
     url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Radetzky_March.ogg',
-    rate:1.12, volume:.98
+    rate:1.10, volume:.98
   },
   3:{
     title:'モーツァルト：レクイエム「怒りの日」',
     url:'https://commons.wikimedia.org/wiki/Special:Redirect/file/PMLP02751-S002-02-Mozart_Requiem_Mass.ogg',
-    rate:1.10, volume:.98
+    rate:1.08, volume:.98
   },
   4:{
     title:'カンカン',
@@ -92,29 +102,47 @@ const REAL_BGM={
 
 const Store={
   best(){
-    try{return Math.max(0,Number(localStorage.getItem('neko_dx5_best'))||0)}
+    try{return Math.max(0,Number(localStorage.getItem('neko_dx53_best'))||0)}
     catch{return 0}
   },
   setBest(v){
-    try{localStorage.setItem('neko_dx5_best',String(Math.max(0,v|0)))}catch{}
+    try{localStorage.setItem('neko_dx53_best',String(Math.max(0,v|0)))}catch{}
   }
 };
 
-function cloneMatrix(m){return m.map(r=>r.slice())}
-function rotateMatrixCW(m){return m[0].map((_,i)=>m.map(r=>r[i]).reverse())}
-
 function setControlsVisible(v){
-  const el=document.getElementById('controls');
-  if(el)el.style.display=v?'block':'none';
+  const e=document.getElementById('controls');
+  if(e)e.style.display=v?'block':'none';
+}
+
+function cloneMatrix(m){return m.map(r=>r.slice())}
+
+function rotateCW(matrix){
+  const h=matrix.length;
+  const w=matrix[0].length;
+  const out=Array.from({length:w},()=>Array(h).fill(null));
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      out[x][h-1-y]=matrix[y][x];
+    }
+  }
+  return out;
+}
+
+function occupied(matrix,cb){
+  for(let y=0;y<matrix.length;y++){
+    for(let x=0;x<matrix[y].length;x++){
+      if(matrix[y][x]!==null)cb(x,y,matrix[y][x]);
+    }
+  }
 }
 
 class AudioEngine{
   constructor(){
     this.ctx=null;
-    this.wantBgm=true;
     this.realAudio=null;
     this.realStage=0;
-    this.pendingRealPlay=false;
+    this.wantBgm=true;
   }
 
   ensure(){
@@ -125,9 +153,10 @@ class AudioEngine{
     }catch{}
   }
 
-  beep(freq=440,dur=.08,vol=.03,type='square',delay=0){
+  tone(freq,dur=.07,vol=.025,type='triangle',delay=0){
     this.ensure();
     if(!this.ctx)return;
+    if(this.ctx.state==='suspended')this.ctx.resume().catch(()=>{});
     const t=this.ctx.currentTime+delay;
     const o=this.ctx.createOscillator();
     const g=this.ctx.createGain();
@@ -140,32 +169,31 @@ class AudioEngine{
     o.start(t);o.stop(t+dur+.03);
   }
 
-  land(){this.beep(120,.045,.018,'sine')}
-  meow(){this.beep(540,.06,.018,'triangle');this.beep(690,.08,.015,'triangle',.045)}
-  bark(){this.beep(180,.055,.024,'square');this.beep(135,.08,.020,'square',.04)}
-
+  land(){this.tone(125,.045,.017,'sine')}
+  meow(){this.tone(540,.06,.018);this.tone(680,.08,.016,'triangle',.045)}
+  bark(){this.tone(170,.055,.023,'square');this.tone(125,.08,.020,'square',.04)}
   clear(chain){
-    const base=520+chain*80;
-    this.beep(base,.07,.035,'triangle');
-    this.beep(base*1.25,.08,.03,'triangle',.05);
-    this.beep(base*1.5,.10,.028,'triangle',.10);
+    const b=500+chain*80;
+    this.tone(b,.07,.035);
+    this.tone(b*1.25,.08,.03,'triangle',.05);
+    this.tone(b*1.5,.10,.025,'triangle',.10);
   }
-
   thunder(chain){
-    this.beep(70,.18,.05,'sawtooth');
-    this.beep(48,.26,.04,'sawtooth',.04);
-    if(chain>=4)this.beep(920,.05,.025,'square',.02);
+    this.tone(68,.18,.05,'sawtooth');
+    this.tone(46,.26,.04,'sawtooth',.04);
+    if(chain>=4)this.tone(900,.045,.025,'square',.02);
   }
 
   setStage(stage){
     const cfg=REAL_BGM[stage];
     if(!cfg)return;
-    this.stopReal();
+
+    this.stop();
 
     const a=new Audio();
     a.src=cfg.url;
-    a.loop=!Number.isFinite(cfg.loopEnd);
     a.preload='auto';
+    a.loop=!Number.isFinite(cfg.loopEnd);
     a.volume=cfg.volume;
     a.playbackRate=cfg.rate;
 
@@ -181,35 +209,26 @@ class AudioEngine{
     a.addEventListener('timeupdate',()=>{
       if(Number.isFinite(cfg.loopEnd)&&a.currentTime>=cfg.loopEnd){
         try{a.currentTime=Number.isFinite(cfg.startAt)?cfg.startAt:0}catch{}
-        if(this.wantBgm)a.play().catch(()=>{this.pendingRealPlay=true});
+        if(this.wantBgm)a.play().catch(()=>{});
       }
     });
 
     this.realAudio=a;
     this.realStage=stage;
 
-    if(this.wantBgm){
-      a.play().then(()=>this.pendingRealPlay=false).catch(()=>this.pendingRealPlay=true);
-    }
+    if(this.wantBgm)a.play().catch(()=>{});
   }
 
   userGestureResume(){
     this.ensure();
     if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume().catch(()=>{});
-    if(this.realAudio&&this.wantBgm){
-      this.realAudio.play().then(()=>this.pendingRealPlay=false).catch(()=>{});
-    }
+    if(this.realAudio&&this.wantBgm)this.realAudio.play().catch(()=>{});
   }
 
-  pause(){
-    if(this.realAudio)this.realAudio.pause();
-  }
+  pause(){if(this.realAudio)this.realAudio.pause()}
+  resume(){this.userGestureResume()}
 
-  resume(){
-    this.userGestureResume();
-  }
-
-  stopReal(){
+  stop(){
     if(this.realAudio){
       this.realAudio.pause();
       try{this.realAudio.currentTime=0}catch{}
@@ -223,9 +242,9 @@ const AUDIO=new AudioEngine();
 
 class PieceFactory{
   constructor(){
-    this.lastShape=-1;
-    this.sameShapeCount=0;
     this.stage=1;
+    this.lastShape=-1;
+    this.streak=0;
   }
 
   setStage(stage){this.stage=stage}
@@ -242,35 +261,45 @@ class PieceFactory{
 
   create(){
     let shapeIdx=this.pickShape();
-    for(let i=0;i<24&&shapeIdx===this.lastShape&&this.sameShapeCount>=2;i++){
+
+    for(let k=0;k<30&&shapeIdx===this.lastShape&&this.streak>=2;k++){
       shapeIdx=this.pickShape();
     }
 
-    if(shapeIdx===this.lastShape)this.sameShapeCount++;
+    if(shapeIdx===this.lastShape)this.streak++;
     else{
       this.lastShape=shapeIdx;
-      this.sameShapeCount=1;
+      this.streak=1;
     }
 
-    const shape=cloneMatrix(SHAPES[shapeIdx]);
-    const colorCount=this.colorCount();
-    const colors=[];
-    let cells=0;
-    for(const row of shape)for(const v of row)if(v)cells++;
+    const mask=SHAPE_MASKS[shapeIdx];
+    const cc=this.colorCount();
 
-    // Critical rule: each of the 4 cells receives its own color.
-    // Avoid generating all four cells in the same color.
-    for(let i=0;i<cells;i++)colors.push((Math.random()*colorCount)|0);
-    if(colors.length>=4 && colors.every(v=>v===colors[0])){
-      colors[colors.length-1]=(colors[0]+1+(Math.random()*(colorCount-1)|0))%colorCount;
+    let matrix=mask.map(row=>row.map(v=>v?((Math.random()*cc)|0):null));
+
+    const vals=[];
+    occupied(matrix,(_,__,c)=>vals.push(c));
+
+    // Never spawn a four-cell piece all in the same color.
+    if(vals.length===4&&vals.every(c=>c===vals[0])){
+      let seen=0;
+      outer:
+      for(let y=matrix.length-1;y>=0;y--){
+        for(let x=matrix[y].length-1;x>=0;x--){
+          if(matrix[y][x]!==null){
+            matrix[y][x]=(matrix[y][x]+1+(Math.random()*(cc-1)|0))%cc;
+            break outer;
+          }
+        }
+      }
     }
 
     return {
       shapeIdx,
-      shape,
-      colors,
+      matrix,
       dog:Math.random()<CFG.dogChance,
-      x:0,y:0
+      x:0,
+      y:0
     };
   }
 }
@@ -280,84 +309,31 @@ class Board{
     this.grid=Array.from({length:CFG.rows},()=>Array(CFG.cols).fill(null));
   }
 
-  cloneGrid(){return this.grid.map(r=>r.map(c=>c?{...c}:null))}
-
-  eachPieceCell(piece,cb,shape=piece.shape){
-    let ci=0;
-    for(let y=0;y<shape.length;y++){
-      for(let x=0;x<shape[y].length;x++){
-        if(!shape[y][x])continue;
-        cb(x,y,piece.colors[ci],ci);
-        ci++;
-      }
-    }
-  }
-
-  collides(piece,dx=0,dy=0,shape=piece.shape){
+  collides(piece,dx=0,dy=0,matrix=piece.matrix){
     let hit=false;
-    this.eachPieceCell(piece,(x,y)=>{
+    occupied(matrix,(x,y)=>{
       if(hit)return;
       const nx=piece.x+x+dx;
       const ny=piece.y+y+dy;
       if(nx<0||nx>=CFG.cols||ny>=CFG.rows)hit=true;
       else if(ny>=0&&this.grid[ny][nx])hit=true;
-    },shape);
+    });
     return hit;
-  }
-
-  rotatedPiece(piece){
-    // Rotate the occupied-cell COLORS together with the shape.
-    // This also makes the O piece visibly rotate because its four colors move.
-    const h=piece.shape.length;
-    const w=piece.shape[0].length;
-
-    const colorMatrix=Array.from({length:h},()=>Array(w).fill(null));
-    let ci=0;
-    for(let y=0;y<h;y++){
-      for(let x=0;x<w;x++){
-        if(piece.shape[y][x])colorMatrix[y][x]=piece.colors[ci++];
-      }
-    }
-
-    const rotatedShape=rotateMatrixCW(piece.shape);
-    const rotatedColor=Array.from(
-      {length:w},
-      ()=>Array(h).fill(null)
-    );
-
-    for(let y=0;y<h;y++){
-      for(let x=0;x<w;x++){
-        if(colorMatrix[y][x]!==null){
-          rotatedColor[x][h-1-y]=colorMatrix[y][x];
-        }
-      }
-    }
-
-    const rotatedColors=[];
-    for(let y=0;y<rotatedShape.length;y++){
-      for(let x=0;x<rotatedShape[y].length;x++){
-        if(rotatedShape[y][x])rotatedColors.push(rotatedColor[y][x]);
-      }
-    }
-
-    return {
-      ...piece,
-      shape:rotatedShape,
-      colors:rotatedColors
-    };
   }
 
   lock(piece){
     let overflow=false;
-    this.eachPieceCell(piece,(x,y,color)=>{
+    occupied(piece.matrix,(x,y,colorIdx)=>{
       const bx=piece.x+x;
       const by=piece.y+y;
-      if(by<0){overflow=true;return}
-      if(by>=0&&by<CFG.rows&&bx>=0&&bx<CFG.cols){
+      if(by<0){
+        overflow=true;
+        return;
+      }
+      if(bx>=0&&bx<CFG.cols&&by>=0&&by<CFG.rows){
         this.grid[by][bx]={
-          colorIdx:color,
-          dog:piece.dog,
-          shapeIdx:piece.shapeIdx
+          colorIdx,
+          dog:piece.dog
         };
       }
     });
@@ -365,9 +341,9 @@ class Board{
   }
 
   ghostY(piece){
-    let y=piece.y;
-    while(!this.collides({...piece,y},0,1))y++;
-    return y;
+    let gy=piece.y;
+    while(!this.collides({...piece,y:gy},0,1))gy++;
+    return gy;
   }
 
   findGroups(min=4){
@@ -376,10 +352,10 @@ class Board{
 
     for(let y=0;y<CFG.rows;y++){
       for(let x=0;x<CFG.cols;x++){
-        const cell=this.grid[y][x];
-        if(!cell||seen[y][x])continue;
+        const c=this.grid[y][x];
+        if(!c||seen[y][x])continue;
 
-        const color=cell.colorIdx;
+        const color=c.colorIdx;
         const stack=[[x,y]];
         const group=[];
         seen[y][x]=true;
@@ -407,9 +383,9 @@ class Board{
 
   expandDogBomb(cells){
     const kill=new Set(cells.map(([x,y])=>`${x},${y}`));
-    const initial=[...kill].map(s=>s.split(',').map(Number));
+    const snapshot=[...kill].map(s=>s.split(',').map(Number));
 
-    for(const [x,y] of initial){
+    for(const [x,y] of snapshot){
       for(let dy=-1;dy<=1;dy++){
         for(let dx=-1;dx<=1;dx++){
           const nx=x+dx,ny=y+dy;
@@ -432,7 +408,7 @@ class Board{
     return [...kill].map(s=>s.split(',').map(Number));
   }
 
-  removeCells(cells){
+  remove(cells){
     for(const [x,y] of cells){
       if(x>=0&&x<CFG.cols&&y>=0&&y<CFG.rows)this.grid[y][x]=null;
     }
@@ -456,71 +432,81 @@ class BootScene extends Phaser.Scene{
   constructor(){super('Boot')}
 
   create(){
-    // cat tiles
     for(let i=0;i<COLORS.length;i++){
       const g=this.add.graphics();
+
       g.fillStyle(COLORS[i],1);
       g.fillRoundedRect(1,1,24,24,3);
-      g.lineStyle(2,0x111111,.9);
+      g.lineStyle(2,0x101010,1);
       g.strokeRoundedRect(1,1,24,24,3);
 
-      g.fillStyle(0xffffff,.95);
+      // ears
+      g.fillStyle(COLORS[i],1);
+      g.fillTriangle(3,4,7,0,9,6);
+      g.fillTriangle(17,6,19,0,23,4);
+
+      // face
+      g.fillStyle(0xffffff,1);
       g.fillCircle(8,10,3);
       g.fillCircle(18,10,3);
       g.fillStyle(0x111111,1);
       g.fillCircle(8,10,1.2);
       g.fillCircle(18,10,1.2);
 
-      g.lineStyle(1.5,0x111111,.9);
+      g.lineStyle(1.5,0x111111,1);
       g.beginPath();
-      g.moveTo(10,17);g.lineTo(13,19);g.lineTo(16,17);g.strokePath();
+      g.moveTo(10,17);
+      g.lineTo(13,19);
+      g.lineTo(16,17);
+      g.strokePath();
 
-      // Color-blind accessibility marker: every color has a unique symbol.
-      // Marker is in the lower-right corner, so color is not the only cue.
-      g.fillStyle(0xffffff,.98);
-      g.lineStyle(1.4,0x111111,1);
+      // Non-color identification mark: each color has a unique symbol.
+      g.lineStyle(1.5,0x111111,1);
+      g.fillStyle(0xffffff,1);
+
       if(i===0){
-        g.fillCircle(21,21,2.4); g.strokeCircle(21,21,2.4);
+        g.fillCircle(21,21,2.5);
+        g.strokeCircle(21,21,2.5);
       }else if(i===1){
         g.fillTriangle(18.5,23,21,18,23.5,23);
         g.strokeTriangle(18.5,23,21,18,23.5,23);
       }else if(i===2){
-        g.fillRect(18.5,18.5,5,5); g.strokeRect(18.5,18.5,5,5);
+        g.fillRect(18.5,18.5,5,5);
+        g.strokeRect(18.5,18.5,5,5);
       }else if(i===3){
-        g.beginPath(); g.moveTo(21,18); g.lineTo(24,21); g.lineTo(21,24); g.lineTo(18,21); g.closePath();
-        g.fillPath(); g.strokePath();
+        g.beginPath();
+        g.moveTo(21,18);
+        g.lineTo(24,21);
+        g.lineTo(21,24);
+        g.lineTo(18,21);
+        g.closePath();
+        g.fillPath();
+        g.strokePath();
       }else if(i===4){
         g.lineStyle(2,0xffffff,1);
-        g.lineBetween(18.5,21,23.5,21); g.lineBetween(21,18.5,21,23.5);
-        g.lineStyle(1,0x111111,1);
+        g.lineBetween(18,21,24,21);
+        g.lineBetween(21,18,21,24);
       }else{
-        g.fillCircle(19,20,1.2); g.fillCircle(23,20,1.2); g.fillCircle(21,23,1.2);
+        g.fillCircle(19,20,1.3);
+        g.fillCircle(23,20,1.3);
+        g.fillCircle(21,23,1.3);
       }
-
-      // ears
-      g.fillStyle(COLORS[i],1);
-      g.fillTriangle(3,3,7,0,9,5);
-      g.fillTriangle(17,5,19,0,23,3);
 
       g.generateTexture('cat'+i,26,26);
       g.destroy();
     }
 
-    // dog
-    {
-      const g=this.add.graphics();
-      g.fillStyle(0x9c6b30,1);
-      g.fillRoundedRect(1,1,24,24,3);
-      g.lineStyle(2,0x111111,.9);
-      g.strokeRoundedRect(1,1,24,24,3);
-      g.fillStyle(0xffffff,1);
-      g.fillCircle(8,10,3);g.fillCircle(18,10,3);
-      g.fillStyle(0x111111,1);
-      g.fillCircle(8,10,1.2);g.fillCircle(18,10,1.2);
-      g.fillCircle(13,16,2);
-      g.generateTexture('dog',26,26);
-      g.destroy();
-    }
+    const d=this.add.graphics();
+    d.fillStyle(0x9b7a55,1);
+    d.fillRoundedRect(1,1,24,24,3);
+    d.lineStyle(2,0x101010,1);
+    d.strokeRoundedRect(1,1,24,24,3);
+    d.fillStyle(0xffffff,1);
+    d.fillCircle(8,10,3);d.fillCircle(18,10,3);
+    d.fillStyle(0x111111,1);
+    d.fillCircle(8,10,1.2);d.fillCircle(18,10,1.2);d.fillCircle(13,16,2);
+    d.generateTexture('dog',26,26);
+    d.destroy();
 
     this.scene.start('Title');
   }
@@ -532,26 +518,23 @@ class TitleScene extends Phaser.Scene{
   create(){
     setControlsVisible(false);
     const w=this.scale.width,h=this.scale.height;
-
     this.cameras.main.setBackgroundColor('#eef7fb');
 
     this.add.text(w/2,h*.20,'NEKO BLOCKS DX',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'34px',fontStyle:'bold',color:'#10212c',
-      stroke:'#ffffff',strokeThickness:4
+      fontSize:'34px',fontStyle:'bold',
+      color:'#10212c',stroke:'#ffffff',strokeThickness:4
     }).setOrigin(.5);
 
     this.add.text(w/2,h*.29,'COLOR CHAIN',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'20px',fontStyle:'bold',color:'#1976d2'
+      fontSize:'20px',fontStyle:'bold',
+      color:'#0072b2'
     }).setOrigin(.5);
 
     this.add.text(w/2,h*.39,
       '同じ色を上下左右で4個つなげると消える！\n消えた後は落下して、さらに揃えば連鎖！',
-      {
-        align:'center',fontSize:'16px',color:'#33434f',
-        lineSpacing:8
-      }
+      {align:'center',fontSize:'16px',color:'#33434f',lineSpacing:8}
     ).setOrigin(.5);
 
     const start=this.add.text(w/2,h*.58,'START',{
@@ -566,7 +549,7 @@ class TitleScene extends Phaser.Scene{
       this.scene.start('Game');
     });
 
-    this.add.text(w/2,h*.72,'5.2  /  COLOR-SAFE ROTATION',{
+    this.add.text(w/2,h*.72,'v5.3  FULL REBUILD',{
       fontSize:'12px',color:'#71808b'
     }).setOrigin(.5);
   }
@@ -584,45 +567,42 @@ class GameScene extends Phaser.Scene{
     this.score=0;
     this.clears=0;
     this.level=1;
-    this.best=Store.best();
     this.stage=1;
+    this.best=Store.best();
 
     this.state='SPAWN';
-    this.pausedByUser=false;
+    this.piece=null;
+    this.next=null;
     this.ended=false;
-    this.stageCutinActive=false;
-    this.lastStageClear=0;
-
-    this.dropAccum=0;
+    this.pausedByUser=false;
+    this.stageCutin=false;
     this.softDrop=false;
+    this.dropAccum=0;
 
     this.bx=Math.floor((this.scale.width-CFG.boardW)/2);
     this.by=82;
 
     this.buildUI();
     this.bindControls();
-    this.applyStageTheme(true);
+    this.applyTheme();
 
-    this.factory.setStage(this.stage);
+    this.factory.setStage(1);
     this.next=this.factory.create();
 
     AUDIO.setStage(1);
-    this.spawnPiece();
+    this.spawn();
   }
 
   buildUI(){
     this.boardBg=this.add.rectangle(
       this.bx+CFG.boardW/2,
       this.by+CFG.boardH/2,
-      CFG.boardW,
-      CFG.boardH,
-      0xffffff,
-      .93
-    ).setStrokeStyle(3,0x1b2830,1).setDepth(0);
+      CFG.boardW,CFG.boardH,
+      0xffffff,.94
+    ).setStrokeStyle(3,0x1b2830,1);
 
-    // vertical guide lines only
-    this.guides=this.add.graphics().setDepth(1);
-    this.guides.lineStyle(1,0x6d7c86,.20);
+    this.guides=this.add.graphics();
+    this.guides.lineStyle(1,0x6d7c86,.18);
     for(let x=1;x<CFG.cols;x++){
       const px=this.bx+x*CFG.cell;
       this.guides.lineBetween(px,this.by,px,this.by+CFG.boardH);
@@ -631,12 +611,13 @@ class GameScene extends Phaser.Scene{
     this.lockedLayer=this.add.container(0,0).setDepth(4);
     this.ghostLayer=this.add.container(0,0).setDepth(5);
     this.activeLayer=this.add.container(0,0).setDepth(6);
+    this.nextLayer=this.add.container(this.scale.width-63,58).setDepth(20);
 
     this.scoreT=this.add.text(12,10,'SCORE 0',{
       fontFamily:'Arial Black, sans-serif',fontSize:'16px',color:'#14232d'
     }).setDepth(20);
 
-    this.clearCountT=this.add.text(12,34,'CLEAR 0',{
+    this.clearT=this.add.text(12,34,'CLEAR 0',{
       fontFamily:'Arial Black, sans-serif',fontSize:'14px',color:'#14232d'
     }).setDepth(20);
 
@@ -644,64 +625,80 @@ class GameScene extends Phaser.Scene{
       fontFamily:'Arial Black, sans-serif',fontSize:'16px',color:'#14232d'
     }).setOrigin(1,0).setDepth(20);
 
-    this.musicT=this.add.text(this.scale.width/2,58,'',{
-      fontSize:'11px',fontStyle:'bold',color:'#596974'
-    }).setOrigin(.5,0).setDepth(20);
-
     this.nextT=this.add.text(this.scale.width-12,34,'NEXT',{
       fontSize:'12px',fontStyle:'bold',color:'#14232d'
     }).setOrigin(1,0).setDepth(20);
 
-    this.nextLayer=this.add.container(this.scale.width-62,56).setDepth(20);
+    this.musicT=this.add.text(this.scale.width/2,58,'',{
+      fontSize:'11px',fontStyle:'bold',color:'#596974'
+    }).setOrigin(.5,0).setDepth(20);
 
-    this.chainT=this.add.text(this.scale.width/2,this.by+150,'',{
-      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:'34px',fontStyle:'bold',
+    this.chainT=this.add.text(this.scale.width/2,this.by+155,'',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'36px',fontStyle:'bold',
       color:'#ffffff',stroke:'#000000',strokeThickness:8
-    }).setOrigin(.5).setAlpha(0).setDepth(70);
+    }).setOrigin(.5).setAlpha(0).setDepth(75);
 
     this.pauseShade=this.add.rectangle(
       this.scale.width/2,this.scale.height/2,
       this.scale.width,this.scale.height,
-      0x000000,.62
-    ).setDepth(120).setVisible(false);
+      0x000000,.68
+    ).setVisible(false).setDepth(130);
 
-    this.pauseT=this.add.text(this.scale.width/2,this.scale.height/2,'PAUSE',{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'46px',color:'#ffffff'
-    }).setOrigin(.5).setDepth(121).setVisible(false);
+    this.pauseText=this.add.text(this.scale.width/2,this.scale.height/2,'PAUSE',{
+      fontFamily:'Arial Black, sans-serif',fontSize:'44px',color:'#ffffff'
+    }).setOrigin(.5).setVisible(false).setDepth(131);
+  }
+
+  buttonVisual(el,down){
+    if(!el)return;
+    el.classList.toggle('is-pressed',!!down);
   }
 
   bindControls(){
-    const one=(id,fn)=>{
+    const tap=(id,fn)=>{
       const el=document.getElementById(id);
       if(!el)return;
+
       el.onpointerdown=e=>{
         e.preventDefault();
         AUDIO.userGestureResume();
+        this.buttonVisual(el,true);
         fn();
       };
+
+      const release=()=>this.buttonVisual(el,false);
+      el.onpointerup=release;
+      el.onpointercancel=release;
+      el.onpointerleave=release;
     };
 
     const hold=(id,onDown,onUp)=>{
       const el=document.getElementById(id);
       if(!el)return;
+
       el.onpointerdown=e=>{
         e.preventDefault();
         AUDIO.userGestureResume();
+        this.buttonVisual(el,true);
         onDown();
       };
-      el.onpointerup=e=>{e.preventDefault();onUp()};
-      el.onpointercancel=()=>onUp();
-      el.onpointerleave=()=>onUp();
+
+      const release=()=>{
+        this.buttonVisual(el,false);
+        onUp();
+      };
+      el.onpointerup=release;
+      el.onpointercancel=release;
+      el.onpointerleave=release;
     };
 
-    one('left',()=>this.move(-1));
-    one('right',()=>this.move(1));
-    one('rotate',()=>this.rotate());
-    one('drop',()=>this.hardDrop());
-    one('pause',()=>this.togglePause());
-    hold('down',()=>{this.softDrop=true},()=>{this.softDrop=false});
+    tap('left',()=>this.move(-1));
+    tap('right',()=>this.move(1));
+    tap('rotate',()=>this.rotate());
+    tap('drop',()=>this.hardDrop());
+    tap('pause',()=>this.togglePause());
+    hold('down',()=>this.softDrop=true,()=>this.softDrop=false);
 
     this.input.keyboard.on('keydown-LEFT',()=>this.move(-1));
     this.input.keyboard.on('keydown-RIGHT',()=>this.move(1));
@@ -717,33 +714,33 @@ class GameScene extends Phaser.Scene{
   }
 
   fallMs(){
-    const stageSpeed=[760,700,640,580,520,470,420,370,320,270];
-    return stageSpeed[this.stage-1]||270;
+    return [760,700,640,580,520,470,420,370,320,270][this.stage-1]||270;
   }
 
-  activeGameplay(){
-    return !this.ended&&!this.pausedByUser&&!this.stageCutinActive&&this.state==='FALLING'&&this.piece;
+  canControl(){
+    return !this.ended&&!this.pausedByUser&&!this.stageCutin&&this.state==='FALLING'&&!!this.piece;
   }
 
   update(_,delta){
-    if(!this.activeGameplay())return;
+    if(!this.canControl())return;
 
     this.dropAccum+=delta;
     const interval=this.softDrop?Math.max(55,this.fallMs()*.12):this.fallMs();
 
     if(this.dropAccum>=interval){
       this.dropAccum=0;
+
       if(!this.board.collides(this.piece,0,1)){
         this.piece.y++;
         if(this.softDrop)this.score++;
         this.redraw();
       }else{
-        this.beginLock();
+        this.beginLock(false);
       }
     }
   }
 
-  spawnPiece(){
+  spawn(){
     if(this.ended)return;
 
     this.state='SPAWN';
@@ -752,10 +749,10 @@ class GameScene extends Phaser.Scene{
     this.piece=this.next||this.factory.create();
     this.next=this.factory.create();
 
-    this.piece.x=Math.floor((CFG.cols-this.piece.shape[0].length)/2);
+    this.piece.x=Math.floor((CFG.cols-this.piece.matrix[0].length)/2);
     this.piece.y=-2;
 
-    if(this.board.collides(this.piece,0,0)){
+    if(this.board.collides(this.piece)){
       this.gameOver();
       return;
     }
@@ -766,7 +763,7 @@ class GameScene extends Phaser.Scene{
   }
 
   move(dx){
-    if(!this.activeGameplay())return;
+    if(!this.canControl())return;
     if(!this.board.collides(this.piece,dx,0)){
       this.piece.x+=dx;
       this.redraw();
@@ -774,12 +771,18 @@ class GameScene extends Phaser.Scene{
   }
 
   rotate(){
-    if(!this.activeGameplay())return;
-    const rotated=this.board.rotatedPiece(this.piece);
+    if(!this.canControl())return;
+
+    const rotated=rotateCW(this.piece.matrix);
 
     for(const kick of [0,-1,1,-2,2]){
-      const test={...rotated,x:this.piece.x+kick,y:this.piece.y};
-      if(!this.board.collides(test,0,0,test.shape)){
+      const test={
+        ...this.piece,
+        x:this.piece.x+kick,
+        matrix:rotated
+      };
+
+      if(!this.board.collides(test,0,0,rotated)){
         this.piece=test;
         this.redraw();
         return;
@@ -788,28 +791,26 @@ class GameScene extends Phaser.Scene{
   }
 
   hardDrop(){
-    if(!this.activeGameplay())return;
+    if(!this.canControl())return;
 
-    let moved=0;
+    let d=0;
     while(!this.board.collides(this.piece,0,1)){
       this.piece.y++;
-      moved++;
+      d++;
     }
-    this.score+=moved*2;
+
+    this.score+=d*2;
     this.redraw();
     this.beginLock(true);
   }
 
-  beginLock(immediate=false){
+  beginLock(immediate){
     if(this.state!=='FALLING')return;
     this.state='LOCKING';
 
-    const delay=immediate?0:CFG.lockDelay;
-    this.time.delayedCall(delay,()=>{
-      if(this.ended||this.pausedByUser)return;
+    this.time.delayedCall(immediate?0:CFG.lockDelay,()=>{
+      if(this.ended)return;
 
-      // if player movement would have freed the piece, this version still locks;
-      // state separation keeps resolution deterministic.
       const overflow=this.board.lock(this.piece);
       AUDIO.land();
       this.piece.dog?AUDIO.bark():AUDIO.meow();
@@ -820,11 +821,11 @@ class GameScene extends Phaser.Scene{
         return;
       }
 
-      this.resolveBoard(1);
+      this.resolve(1);
     });
   }
 
-  resolveBoard(chainNo){
+  resolve(chainNo){
     if(this.ended)return;
 
     this.state='CHECKING';
@@ -834,17 +835,23 @@ class GameScene extends Phaser.Scene{
       this.state='STABLE';
       this.redraw();
 
-      const stageNow=this.currentStage();
-      if(stageNow!==this.stage){
-        this.enterStage(stageNow,()=>this.spawnPiece());
+      if(this.clears>=100){
+        this.masterClear();
+        return;
+      }
+
+      const nextStage=this.currentStage();
+
+      if(nextStage!==this.stage){
+        this.enterStage(nextStage);
       }else{
-        this.time.delayedCall(CFG.spawnDelay,()=>this.spawnPiece());
+        this.time.delayedCall(CFG.spawnDelay,()=>this.spawn());
       }
       return;
     }
 
     let cells=[];
-    for(const group of groups)cells.push(...group);
+    groups.forEach(g=>cells.push(...g));
     cells=this.board.expandDogBomb(cells);
 
     const uniq=[...new Set(cells.map(([x,y])=>`${x},${y}`))]
@@ -852,9 +859,9 @@ class GameScene extends Phaser.Scene{
 
     this.state='CLEARING';
 
-    const mult=Math.pow(2,Math.max(0,chainNo-1));
-    this.score+=uniq.length*25*mult*this.level;
-    this.clears+=1;
+    const multiplier=Math.pow(2,Math.max(0,chainNo-1));
+    this.score+=uniq.length*25*multiplier*this.level;
+    this.clears++;
     this.level=1+Math.floor(this.clears/10);
 
     AUDIO.clear(chainNo);
@@ -862,40 +869,36 @@ class GameScene extends Phaser.Scene{
 
     this.showChain(chainNo,uniq.length);
     this.animateClear(uniq,chainNo,()=>{
-      this.board.removeCells(uniq);
+      this.board.remove(uniq);
 
       this.state='GRAVITY';
-      this.animateGravity(()=>{
+      this.time.delayedCall(CFG.gravityDelay,()=>{
         this.board.collapse();
         this.redraw();
 
-        // Re-check only after gravity fully settles.
-        this.time.delayedCall(90,()=>this.resolveBoard(chainNo+1));
+        this.time.delayedCall(80,()=>this.resolve(chainNo+1));
       });
     });
   }
 
   animateClear(cells,chainNo,done){
-    const ghosts=[];
-
     for(const [x,y] of cells){
       const c=this.board.grid[y][x];
       if(!c)continue;
 
-      const sp=this.createCellSprite(c,x,y,1).setDepth(50);
-      ghosts.push(sp);
+      const sp=this.makeCell(c,x,y,1).setDepth(60);
 
       this.tweens.add({
         targets:sp,
-        scaleX:1.28,scaleY:1.28,
-        angle:(Math.random()-.5)*20,
-        duration:90,
+        scaleX:1.30,scaleY:1.30,
+        duration:85,
         ease:'Quad.easeOut',
         onComplete:()=>{
           this.tweens.add({
             targets:sp,
-            alpha:0,scaleX:.06,scaleY:.06,
-            duration:150,
+            alpha:0,scaleX:.05,scaleY:.05,
+            angle:(Math.random()-.5)*35,
+            duration:145,
             ease:'Back.easeIn',
             onComplete:()=>sp.destroy()
           });
@@ -906,60 +909,53 @@ class GameScene extends Phaser.Scene{
     if(chainNo>=3)this.chainLightning(chainNo,cells);
     if(chainNo>=5)this.chainFinisher(chainNo);
 
-    this.time.delayedCall(CFG.clearAnimMs,done);
-  }
-
-  animateGravity(done){
-    // Board mutation happens only after animation timing;
-    // this keeps logic deterministic while still showing a drop beat.
-    this.cameras.main.shake(80,.003);
-    this.time.delayedCall(CFG.gravityAnimMs,done);
+    this.time.delayedCall(CFG.clearDelay,done);
   }
 
   showChain(chainNo,count){
-    const text=chainNo===1?`${count} MATCH!`:`${chainNo} CHAIN!`;
+    const label=chainNo===1?`${count} MATCH!`:`${chainNo} CHAIN!`;
 
     this.chainT
-      .setText(text)
+      .setText(label)
       .setAlpha(1)
       .setScale(.45)
-      .setY(this.by+165);
+      .setY(this.by+160);
 
     this.tweens.killTweensOf(this.chainT);
     this.tweens.add({
       targets:this.chainT,
-      scale:chainNo>=3?1.28:1.05,
-      y:this.chainT.y-20,
-      duration:180,
+      scale:chainNo>=3?1.30:1.06,
+      y:this.chainT.y-22,
+      duration:170,
       ease:'Back.easeOut',
-      hold:220,
+      hold:230,
       yoyo:true,
       onComplete:()=>this.chainT.setAlpha(0)
     });
   }
 
   chainLightning(chainNo,cells){
-    const avgX=cells.reduce((s,p)=>s+p[0],0)/cells.length;
-    const avgY=cells.reduce((s,p)=>s+p[1],0)/cells.length;
-    const tx=this.bx+avgX*CFG.cell+CFG.cell/2;
-    const ty=this.by+avgY*CFG.cell+CFG.cell/2;
+    const ax=cells.reduce((s,p)=>s+p[0],0)/cells.length;
+    const ay=cells.reduce((s,p)=>s+p[1],0)/cells.length;
+    const tx=this.bx+ax*CFG.cell+CFG.cell/2;
+    const ty=this.by+ay*CFG.cell+CFG.cell/2;
 
     this.cameras.main.flash(90,220,245,255);
-    this.cameras.main.shake(150,.006+Math.min(.012,chainNo*.0015));
+    this.cameras.main.shake(160,.007+Math.min(.01,chainNo*.0014));
 
-    const bolt=this.add.graphics().setDepth(80);
-    bolt.lineStyle(4,0xeaffff,1);
+    const bolt=this.add.graphics().setDepth(90);
+    bolt.lineStyle(4,0xffffff,1);
 
-    let x=tx+(Math.random()-.5)*100;
-    let y=this.by-40;
+    let sx=tx+(Math.random()-.5)*100;
     bolt.beginPath();
-    bolt.moveTo(x,y);
+    bolt.moveTo(sx,this.by-45);
 
     for(let i=1;i<=9;i++){
       const t=i/9;
-      const nx=Phaser.Math.Linear(x,tx,t)+(Math.random()-.5)*38;
-      const ny=Phaser.Math.Linear(this.by-40,ty,t);
-      bolt.lineTo(nx,ny);
+      bolt.lineTo(
+        Phaser.Math.Linear(sx,tx,t)+(Math.random()-.5)*40,
+        Phaser.Math.Linear(this.by-45,ty,t)
+      );
     }
     bolt.lineTo(tx,ty);
     bolt.strokePath();
@@ -976,9 +972,10 @@ class GameScene extends Phaser.Scene{
       {
         fontFamily:'Arial Black, sans-serif',
         fontSize:'54px',fontStyle:'bold',
-        color:'#fff59d',stroke:'#000000',strokeThickness:9
+        color:'#fff59d',
+        stroke:'#000000',strokeThickness:9
       }
-    ).setOrigin(.5).setDepth(100).setScale(.35);
+    ).setOrigin(.5).setDepth(105).setScale(.35);
 
     this.cameras.main.flash(130,255,245,185);
     this.cameras.main.shake(300,.014);
@@ -992,84 +989,81 @@ class GameScene extends Phaser.Scene{
     });
   }
 
-  enterStage(newStage,after){
-    if(this.stageCutinActive)return;
-
-    this.stageCutinActive=true;
+  enterStage(newStage){
+    this.stageCutin=true;
     this.state='STAGE_CUTIN';
+    const clearedStage=newStage-1;
+
     this.stage=newStage;
     this.factory.setStage(newStage);
-
     AUDIO.setStage(newStage);
-    this.applyStageTheme();
+    this.applyTheme();
     this.updateHUD();
 
-    this.showStageClearCutin(newStage-1,()=>{
-      this.stageCutinActive=false;
+    this.showStageCutin(clearedStage,()=>{
+      this.stageCutin=false;
       this.state='STABLE';
-      after?.();
+      this.spawn();
     });
   }
 
-  showStageClearCutin(clearedStage,onDone){
-    const stageNumber=Math.max(1,Math.min(10,clearedStage));
-    const msg=STAGE_CLEAR_MESSAGES[stageNumber]||'制覇';
+  showStageCutin(stageNumber,onDone){
+    const msg=STAGE_MESSAGES[stageNumber]||'制覇';
     const w=this.scale.width,h=this.scale.height;
-    const gold=stageNumber===10;
 
-    const shade=this.add.rectangle(w/2,h/2,w,h,0x05080c,.56).setDepth(90);
-    const band=this.add.rectangle(w/2,h/2,w*1.65,176,gold?0x3a2b00:0x101a24,.94)
-      .setDepth(91).setAngle(-12).setScale(0,1);
+    const shade=this.add.rectangle(w/2,h/2,w,h,0x030509,.58).setDepth(120);
+    const band=this.add.rectangle(w/2,h/2,w*1.7,178,0x101a24,.96)
+      .setDepth(121).setAngle(-12).setScale(0,1);
 
-    this.tweens.add({targets:band,scaleX:1,duration:180,ease:'Cubic.easeOut'});
+    this.tweens.add({
+      targets:band,scaleX:1,duration:180,ease:'Cubic.easeOut'
+    });
 
     const lines=[];
-    for(let i=0;i<30;i++){
-      const a=(i/30)*Math.PI*2;
-      const len=90+Math.random()*150;
-      const r=125+Math.random()*70;
-      const line=this.add.rectangle(
+    for(let i=0;i<32;i++){
+      const a=i/32*Math.PI*2;
+      const r=120+Math.random()*75;
+      const l=this.add.rectangle(
         w/2+Math.cos(a)*r,
         h/2+Math.sin(a)*r,
-        len,2,
-        gold?0xffe082:0xcaf5ff,.72
-      ).setDepth(92).setAngle(Phaser.Math.RadToDeg(a));
-      lines.push(line);
+        90+Math.random()*150,
+        2,
+        0xd7f6ff,.72
+      ).setDepth(122).setAngle(Phaser.Math.RadToDeg(a));
+      lines.push(l);
     }
 
     const sub=this.add.text(w/2,h/2-96,`STAGE ${stageNumber} CLEAR!`,{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'23px',fontStyle:'bold',
-      color:gold?'#ffe082':'#e9fbff',
+      color:'#ffffff',
       stroke:'#000000',strokeThickness:5
-    }).setOrigin(.5).setDepth(95);
+    }).setOrigin(.5).setDepth(124);
 
-    const t=this.add.text(w/2,h/2,msg,{
+    const text=this.add.text(w/2,h/2,msg,{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
       fontSize:'176px',fontStyle:'bold',
-      color:gold?'#ffd54f':'#ffffff',
-      stroke:gold?'#6c4b00':'#0d3850',
-      strokeThickness:14
-    }).setOrigin(.5).setDepth(96).setScale(2.6).setAlpha(0).setAngle(-9);
+      color:'#ffffff',
+      stroke:'#0d3850',strokeThickness:14
+    }).setOrigin(.5).setDepth(125).setAngle(-9).setScale(2.6).setAlpha(0);
 
     this.cameras.main.flash(90,255,255,255);
 
     this.tweens.add({
-      targets:t,alpha:1,scale:1,
-      duration:260,ease:'Back.easeOut'
+      targets:text,scale:1,alpha:1,duration:260,ease:'Back.easeOut'
     });
 
     this.time.delayedCall(1050,()=>{
-      const g1=this.add.text(t.x+18,t.y+12,msg,{
+      const ghost=this.add.text(text.x+20,text.y+14,msg,{
         fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
         fontSize:'176px',fontStyle:'bold',
-        color:gold?'#ffd54f':'#73e6ff',
-        stroke:'#000',strokeThickness:10
-      }).setOrigin(.5).setDepth(94).setAlpha(.30).setAngle(-9);
+        color:'#56b4e9',
+        stroke:'#000000',strokeThickness:10
+      }).setOrigin(.5).setDepth(123).setAlpha(.28).setAngle(-9);
 
       this.tweens.add({
-        targets:[t,g1],
-        x:-200,y:-100,alpha:0,
+        targets:[text,ghost],
+        x:-210,y:-110,alpha:0,
         duration:800,ease:'Cubic.easeIn'
       });
 
@@ -1077,95 +1071,98 @@ class GameScene extends Phaser.Scene{
         targets:[shade,band,sub,...lines],
         alpha:0,duration:500,
         onComplete:()=>{
-          for(const obj of [shade,band,sub,t,g1,...lines]){
-            if(obj&&obj.destroy)obj.destroy();
-          }
+          [shade,band,sub,text,ghost,...lines].forEach(o=>o&&o.destroy&&o.destroy());
           onDone?.();
         }
       });
     });
   }
 
+  masterClear(){
+    if(this.ended)return;
+    this.ended=true;
+    this.state='COMPLETE';
+
+    const w=this.scale.width,h=this.scale.height;
+    this.cameras.main.flash(250,255,230,120);
+
+    const shade=this.add.rectangle(w/2,h/2,w,h,0x000000,.78).setDepth(150);
+    const t=this.add.text(w/2,h*.40,'完全制覇',{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:'62px',fontStyle:'bold',
+      color:'#ffd54f',stroke:'#000000',strokeThickness:10
+    }).setOrigin(.5).setDepth(151);
+
+    this.add.text(w/2,h*.53,'100 CLEAR',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'26px',color:'#ffffff'
+    }).setOrigin(.5).setDepth(151);
+  }
+
   togglePause(){
-    if(this.ended||this.stageCutinActive)return;
+    if(this.ended||this.stageCutin)return;
+
     this.pausedByUser=!this.pausedByUser;
     this.pauseShade.setVisible(this.pausedByUser);
-    this.pauseT.setVisible(this.pausedByUser);
+    this.pauseText.setVisible(this.pausedByUser);
 
     if(this.pausedByUser)AUDIO.pause();
     else AUDIO.resume();
   }
 
-  applyStageTheme(initial=false){
-    const stage=this.stage;
+  applyTheme(){
     const shades=[
       '#eef7fb','#dcecf4','#cbdfe9','#b6cbd6','#9fb4c0',
       '#8398a5','#647985','#465a66','#293b46','#000000'
     ];
 
-    this.cameras.main.setBackgroundColor(shades[stage-1]||'#000000');
+    this.cameras.main.setBackgroundColor(shades[this.stage-1]||'#000000');
 
     if(this.boardBg){
-      this.boardBg.setFillStyle(stage===10?0x070707:0xffffff,stage===10?.92:.93);
-      this.boardBg.setStrokeStyle(3,stage===10?0xffd54f:0x1b2830,1);
+      this.boardBg.setFillStyle(this.stage===10?0x080808:0xffffff,this.stage===10?.93:.94);
+      this.boardBg.setStrokeStyle(3,this.stage===10?0xffd54f:0x1b2830,1);
     }
 
-    if(!initial)this.redraw();
+    this.redraw();
   }
 
-  createCellSprite(cell,x,y,alpha=1){
+  makeCell(cell,x,y,alpha=1){
     const key=cell.dog?'dog':'cat'+cell.colorIdx;
     const sp=this.add.image(
       this.bx+x*CFG.cell+CFG.cell/2,
       this.by+y*CFG.cell+CFG.cell/2,
       key
     ).setAlpha(alpha);
-
-    if(this.stage===10&&!cell.dog){
-      // Keep original color for matching; final stage uses only gold outer glow.
-      sp.setScale(.96);
-    }
     return sp;
   }
 
-  drawPiece(container,piece,boardY,alpha=1,ghost=false){
-    let ci=0;
-    for(let y=0;y<piece.shape.length;y++){
-      for(let x=0;x<piece.shape[y].length;x++){
-        if(!piece.shape[y][x])continue;
+  drawPiece(layer,piece,boardY,alpha=1,ghost=false){
+    occupied(piece.matrix,(x,y,colorIdx)=>{
+      const key=piece.dog?'dog':'cat'+colorIdx;
+      const sp=this.add.image(
+        this.bx+(piece.x+x)*CFG.cell+CFG.cell/2,
+        this.by+(boardY+y)*CFG.cell+CFG.cell/2,
+        key
+      ).setAlpha(alpha);
 
-        const colorIdx=piece.colors[ci++];
-        const key=piece.dog?'dog':'cat'+colorIdx;
-        const sp=this.add.image(
-          this.bx+(piece.x+x)*CFG.cell+CFG.cell/2,
-          this.by+(boardY+y)*CFG.cell+CFG.cell/2,
-          key
-        ).setAlpha(alpha);
-
-        if(ghost){
-          sp.setTint(0xffffff);
-          sp.setAlpha(.18);
-        }
-
-        container.add(sp);
+      if(ghost){
+        sp.setTint(0xffffff);
+        sp.setAlpha(.18);
       }
-    }
+
+      layer.add(sp);
+    });
   }
 
   drawNext(){
     this.nextLayer.removeAll(true);
     if(!this.next)return;
 
-    let ci=0;
-    for(let y=0;y<this.next.shape.length;y++){
-      for(let x=0;x<this.next.shape[y].length;x++){
-        if(!this.next.shape[y][x])continue;
-        const color=this.next.colors[ci++];
-        const key=this.next.dog?'dog':'cat'+color;
-        const sp=this.add.image(x*16,y*16,key).setScale(.58);
-        this.nextLayer.add(sp);
-      }
-    }
+    occupied(this.next.matrix,(x,y,colorIdx)=>{
+      const key=this.next.dog?'dog':'cat'+colorIdx;
+      const sp=this.add.image(x*16,y*16,key).setScale(.58);
+      this.nextLayer.add(sp);
+    });
   }
 
   redraw(){
@@ -1180,12 +1177,15 @@ class GameScene extends Phaser.Scene{
         const c=this.board.grid[y][x];
         if(!c)continue;
 
-        const sp=this.createCellSprite(c,x,y,1);
+        const sp=this.makeCell(c,x,y,1);
         this.lockedLayer.add(sp);
 
         if(this.stage===10&&!c.dog){
+          // gold outline/glow, while preserving original matching color
           const glow=this.add.image(sp.x,sp.y,sp.texture.key)
-            .setAlpha(.20).setTint(0xffd54f).setScale(1.08)
+            .setAlpha(.18)
+            .setTint(0xffd54f)
+            .setScale(1.08)
             .setBlendMode(Phaser.BlendModes.ADD);
           this.lockedLayer.add(glow);
         }
@@ -1203,13 +1203,12 @@ class GameScene extends Phaser.Scene{
   }
 
   updateHUD(){
-    const shownBest=Math.max(this.best,this.score);
     this.scoreT.setText('SCORE '+this.score);
-    this.clearCountT.setText('CLEAR '+this.clears);
+    this.clearT.setText('CLEAR '+this.clears);
     this.stageT.setText('STAGE '+this.stage);
 
-    const cfg=REAL_BGM[this.stage];
-    this.musicT.setText(cfg?'BGM: '+cfg.title:'');
+    const music=REAL_BGM[this.stage];
+    this.musicT.setText(music?'BGM: '+music.title:'');
 
     if(this.score>this.best){
       this.best=this.score;
@@ -1218,31 +1217,30 @@ class GameScene extends Phaser.Scene{
   }
 
   gameOver(){
+    if(this.ended)return;
     this.ended=true;
     this.state='GAME_OVER';
     AUDIO.pause();
 
     const w=this.scale.width,h=this.scale.height;
-    const shade=this.add.rectangle(w/2,h/2,w,h,0x000000,.72).setDepth(150);
+    this.add.rectangle(w/2,h/2,w,h,0x000000,.72).setDepth(160);
 
     this.add.text(w/2,h*.40,'GAME OVER',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'44px',color:'#ffffff'
-    }).setOrigin(.5).setDepth(151);
+    }).setOrigin(.5).setDepth(161);
 
-    this.add.text(w/2,h*.50,
-      `SCORE ${this.score}\nCLEAR ${this.clears}\nSTAGE ${this.stage}\nBEST ${Math.max(this.best,this.score)}`,
-      {
-        align:'center',fontSize:'18px',color:'#ffffff',lineSpacing:8
-      }
-    ).setOrigin(.5).setDepth(151);
+    this.add.text(w/2,h*.51,
+      `SCORE ${this.score}\nCLEAR ${this.clears}\nSTAGE ${this.stage}`,
+      {align:'center',fontSize:'18px',color:'#ffffff',lineSpacing:8}
+    ).setOrigin(.5).setDepth(161);
 
-    const retry=this.add.text(w/2,h*.64,'RETRY',{
+    const retry=this.add.text(w/2,h*.65,'RETRY',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'26px',color:'#111111',
       backgroundColor:'#ffffff',
-      padding:{left:25,right:25,top:10,bottom:10}
-    }).setOrigin(.5).setDepth(151).setInteractive();
+      padding:{left:26,right:26,top:10,bottom:10}
+    }).setOrigin(.5).setDepth(161).setInteractive();
 
     retry.on('pointerdown',()=>{
       AUDIO.userGestureResume();
