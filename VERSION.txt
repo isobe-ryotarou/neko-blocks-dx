@@ -1,18 +1,13 @@
-NEKO BLOCKS DX 5.18 — RESCUE DROP
+NEKO BLOCKS DX 5.19 — VERTICAL DROP
 
 Changes:
-- Added selectable DROP mode.
-  DROP = normal downward drag
-  DROP▼ = downward drag instantly moves the piece to the ghost landing position.
-- 1 clear is no longer called a combo.
-- Combo voice removed completely.
-- 2+ chain still displays 2コンボ / 3コンボ / ...
-- Added rescue shooting star 💫.
-- Rescue star appears only when blocks reach the top five rows.
-- It appears at most once per stage.
-- Tap the moving star to erase the bottom five rows.
-- Rescue star triggers flash, shake, shockwave, particles and thunder.
-- Missing the star still consumes that stage's one rescue chance.
+- AUTO DROP toggle moved to a dedicated vertical button on the right side.
+- Vertical button is outside the board and always visible/tappable.
+- Yellow LED = instant drop mode ON.
+- Gray LED = normal drag drop mode.
+- SCORE / STAGE / PAUSE are aligned to the same top baseline and same height.
+- NEXT remains on its own second row.
+- Existing rescue star, combo rules and touch controls are preserved.
 
-BUILD 5.18 • RESCUE DROP
-Cache: 5180
+BUILD 5.19 • VERTICAL DROP
+Cache: 5190
