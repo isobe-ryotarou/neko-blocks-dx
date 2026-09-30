@@ -1,12 +1,18 @@
-NEKO BLOCKS DX 5.7 — FX OVERDRIVE
+NEKO BLOCKS DX 5.9 — ALL STAGES BOSS CLASS
 
-Main change:
-- Rebuilt the full stage-effects subsystem inside game.js.
-- All 10 stage-entry effects now use multi-layer final-stage-class effects.
-- Every stage combines shockwaves, radial particles, edge rays and a dedicated stage motif.
-- Higher stages include lightning, comet rain, shards, confetti and stronger camera effects.
-- Each stage also gets subtle persistent edge ambience while playing.
-- Stage 10 remains strongest, but Stages 1–9 are now much closer to its spectacle level.
-- Old stage ambience is cleaned up on stage changes and GAME OVER.
-- Title build marker: BUILD 5.7 • FX OVERDRIVE
-- Cache bust: 570
+Audit result:
+Stage 10 in 5.8 was fully wired and already included:
+camera zoom, scanlines, multi shockwaves, dual particle bursts,
+gold+white lightning, comet rain, laser cross, confetti,
+secondary lightning, secondary flash, FINAL STAGE warning,
+and persistent ambient effects.
+
+5.9 upgrade:
+- Stages 1–9 are now rebuilt toward Stage-10-class density.
+- Every stage has a second-wave effect after the initial impact.
+- Stages 2–9 use stronger particle counts, more lasers, more lightning,
+  more comet rain, more confetti, and an extra delayed flash.
+- Stage 8 and 9 are nearly final-stage strength.
+- Stage 10 is strengthened again and remains the absolute ceiling.
+- Cache bust: 590.
+- Build marker: BUILD 5.9 • ALL STAGES BOSS CLASS

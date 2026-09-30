@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.7
+  NEKO BLOCKS DX 5.9
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -720,7 +720,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.7 • FX OVERDRIVE',{
+    this.add.text(w/2,575,'BUILD 5.9 • ALL STAGES BOSS CLASS',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -1197,258 +1197,277 @@ class GameScene extends Phaser.Scene{
 
 
   clearStageAmbientFX(){
-    for(const tw of this.stageAmbientTweens||[]){
-      try{tw.stop()}catch{}
-    }
-    for(const tm of this.stageAmbientTimers||[]){
-      try{tm.remove(false)}catch{}
-    }
-    for(const o of this.stageAmbientObjects||[]){
-      try{o.destroy()}catch{}
-    }
+    for(const tw of this.stageAmbientTweens||[]){try{tw.stop()}catch{}}
+    for(const tm of this.stageAmbientTimers||[]){try{tm.remove(false)}catch{}}
+    for(const o of this.stageAmbientObjects||[]){try{o.destroy()}catch{}}
     this.stageAmbientTweens=[];
     this.stageAmbientTimers=[];
     this.stageAmbientObjects=[];
   }
 
-  fxShockwave(cx,cy,color,count=3,maxScale=7){
+  fxArcadeFlash(color=0xffffff, alpha=.5, duration=120){
+    const w=this.scale.width,h=this.scale.height;
+    const r=this.add.rectangle(w/2,h/2,w,h,color,alpha).setDepth(200);
+    this.tweens.add({targets:r,alpha:0,duration,onComplete:()=>r.destroy()});
+  }
+
+  fxScanlines(duration=850, alpha=.18){
+    const w=this.scale.width,h=this.scale.height;
+    const group=[];
+    for(let y=0;y<h;y+=8){
+      const ln=this.add.rectangle(w/2,y,w,2,0xffffff,alpha).setDepth(119);
+      group.push(ln);
+    }
+    this.tweens.add({
+      targets:group,
+      y:'+=18',
+      alpha:0,
+      duration,
+      ease:'Linear',
+      onComplete:()=>group.forEach(o=>o.destroy())
+    });
+  }
+
+  fxShockwave(cx,cy,color,count=5,maxScale=9){
     for(let i=0;i<count;i++){
-      const r=this.add.circle(cx,cy,22)
-        .setStrokeStyle(Math.max(2,6-i),color,.95-i*.14)
-        .setDepth(112)
-        .setAlpha(.95);
+      const r=this.add.circle(cx,cy,18)
+        .setStrokeStyle(Math.max(2,7-i),color,.98-i*.12)
+        .setDepth(121);
       this.tweens.add({
-        targets:r,
-        scale:maxScale+i*1.4,
-        alpha:0,
-        duration:520+i*135,
-        delay:i*65,
-        ease:'Cubic.easeOut',
+        targets:r,scale:maxScale+i*1.6,alpha:0,
+        duration:460+i*110,delay:i*55,
+        ease:'Expo.easeOut',
         onComplete:()=>r.destroy()
       });
     }
   }
 
-  fxBurst(cx,cy,color,count=34,speedMin=90,speedMax=225){
+  fxBurst(cx,cy,color,count=48,minD=80,maxD=280){
     for(let i=0;i<count;i++){
-      const a=(i/count)*Math.PI*2+(Math.random()-.5)*.12;
-      const d=speedMin+Math.random()*(speedMax-speedMin);
-      const size=1.5+Math.random()*3.3;
-      const p=this.add.circle(cx,cy,size,color,.95).setDepth(114);
+      const a=Math.random()*Math.PI*2;
+      const d=minD+Math.random()*(maxD-minD);
+      const p=this.add.rectangle(cx,cy,2+Math.random()*4,6+Math.random()*10,color,.95)
+        .setAngle(Math.random()*180).setDepth(123);
       this.tweens.add({
         targets:p,
         x:cx+Math.cos(a)*d,
         y:cy+Math.sin(a)*d,
+        angle:p.angle+(Math.random()>.5?360:-360),
         alpha:0,
-        scale:.15,
-        duration:520+Math.random()*420,
+        scale:.2,
+        duration:480+Math.random()*420,
         ease:'Cubic.easeOut',
         onComplete:()=>p.destroy()
       });
     }
   }
 
-  fxCometRain(color,count=14,angle=18){
-    const h=this.scale.height,w=this.scale.width;
+  fxLaserCross(color,count=6){
+    const w=this.scale.width,h=this.scale.height;
     for(let i=0;i<count;i++){
-      const startX=-80+Math.random()*(w+160);
-      const startY=-80-Math.random()*220;
-      const len=38+Math.random()*68;
-      const beam=this.add.rectangle(startX,startY,3,len,color,.72)
-        .setAngle(angle).setDepth(111);
+      const y=90+i*(h-180)/(count-1);
+      const beam=this.add.rectangle(w/2,y,w*1.25,4+(i%2)*2,color,.58)
+        .setDepth(120)
+        .setAngle(i%2===0?-18:18)
+        .setAlpha(0);
       this.tweens.add({
         targets:beam,
-        x:startX+130,
+        alpha:{from:0,to:.72},
+        scaleX:{from:.1,to:1},
+        duration:130,
+        yoyo:true,
+        hold:40,
+        delay:i*55,
+        onComplete:()=>beam.destroy()
+      });
+    }
+  }
+
+  fxCometRain(color,count=24,angle=18){
+    const w=this.scale.width,h=this.scale.height;
+    for(let i=0;i<count;i++){
+      const x=-80+Math.random()*(w+160);
+      const y=-100-Math.random()*260;
+      const beam=this.add.rectangle(x,y,3,45+Math.random()*85,color,.85)
+        .setAngle(angle).setDepth(118);
+      this.tweens.add({
+        targets:beam,
+        x:x+160,
         y:h+120,
         alpha:0,
-        duration:650+Math.random()*620,
-        delay:Math.random()*260,
+        duration:520+Math.random()*680,
+        delay:Math.random()*220,
         ease:'Cubic.easeIn',
         onComplete:()=>beam.destroy()
       });
     }
   }
 
-  fxLightning(color,branches=3,power=1){
+  fxLightning(color,branches=5,power=1.1){
     const w=this.scale.width;
-    const top=this.by-8;
-    const bottom=this.by+CFG.boardH+12;
+    const top=this.by-18;
+    const bottom=this.by+CFG.boardH+18;
     for(let n=0;n<branches;n++){
-      const gg=this.add.graphics().setDepth(115);
-      const baseX=w*(.18+(.64*(n+1)/(branches+1)));
-      const width=Math.max(2,4*power);
-      gg.lineStyle(width,color,.98);
-      gg.beginPath();
-      let x=baseX+(Math.random()-.5)*35;
-      gg.moveTo(x,top);
-      const seg=10;
+      const gg=this.add.graphics().setDepth(126);
+      const glow=this.add.graphics().setDepth(125);
+      const baseX=w*(.10+.80*((n+1)/(branches+1)));
+      let x=baseX;
+      let pts=[[x,top]];
+      const seg=12;
       for(let i=1;i<=seg;i++){
-        x+=(Math.random()-.5)*(30+power*12);
-        gg.lineTo(x,Phaser.Math.Linear(top,bottom,i/seg));
+        x+=(Math.random()-.5)*(34+22*power);
+        pts.push([x,Phaser.Math.Linear(top,bottom,i/seg)]);
       }
-      gg.strokePath();
 
-      const glow=this.add.graphics().setDepth(114);
-      glow.lineStyle(width*2.8,color,.18);
-      glow.beginPath();
-      let gx=baseX;
-      glow.moveTo(gx,top);
-      for(let i=1;i<=seg;i++){
-        gx+=(Math.random()-.5)*(26+power*10);
-        glow.lineTo(gx,Phaser.Math.Linear(top,bottom,i/seg));
-      }
-      glow.strokePath();
+      glow.lineStyle(10*power,color,.16);
+      glow.beginPath(); glow.moveTo(...pts[0]);
+      pts.slice(1).forEach(p=>glow.lineTo(...p)); glow.strokePath();
 
-      this.tweens.add({targets:[gg,glow],alpha:0,duration:220+Math.random()*180,
-        onComplete:()=>{gg.destroy();glow.destroy();}});
-    }
-  }
+      gg.lineStyle(3.2*power,color,1);
+      gg.beginPath(); gg.moveTo(...pts[0]);
+      pts.slice(1).forEach(p=>gg.lineTo(...p)); gg.strokePath();
 
-  fxEdgeRays(color,count=10){
-    const w=this.scale.width,h=this.scale.height;
-    for(let i=0;i<count;i++){
-      const fromLeft=i%2===0;
-      const x=fromLeft?-120:w+120;
-      const y=80+Math.random()*(h-170);
-      const ray=this.add.rectangle(x,y,180+Math.random()*180,3+Math.random()*4,color,.46)
-        .setAngle(fromLeft?-10:190).setDepth(109);
       this.tweens.add({
-        targets:ray,
-        x:fromLeft?w+180:-180,
-        alpha:0,
-        duration:420+Math.random()*360,
-        delay:Math.random()*240,
-        ease:'Cubic.easeOut',
-        onComplete:()=>ray.destroy()
+        targets:[gg,glow],alpha:0,
+        duration:180+Math.random()*150,
+        onComplete:()=>{gg.destroy();glow.destroy();}
       });
     }
   }
 
-  fxShards(cx,cy,color,count=22){
-    for(let i=0;i<count;i++){
-      const a=Math.random()*Math.PI*2;
-      const d=90+Math.random()*145;
-      const s=this.add.triangle(cx,cy,0,0,5,18,10,0,color,.88)
-        .setAngle(Phaser.Math.RadToDeg(a)+90)
-        .setDepth(113);
-      this.tweens.add({
-        targets:s,
-        x:cx+Math.cos(a)*d,
-        y:cy+Math.sin(a)*d,
-        angle:s.angle+180+Math.random()*180,
-        alpha:0,
-        scale:.25,
-        duration:540+Math.random()*320,
-        ease:'Cubic.easeOut',
-        onComplete:()=>s.destroy()
-      });
-    }
-  }
-
-  fxConfetti(colors,count=34){
+  fxConfetti(colors,count=55){
     const w=this.scale.width,h=this.scale.height;
     for(let i=0;i<count;i++){
       const color=colors[i%colors.length];
-      const x=10+Math.random()*(w-20);
-      const y=-20-Math.random()*150;
-      const c=this.add.rectangle(x,y,4+Math.random()*5,10+Math.random()*12,color,.9)
-        .setAngle(Math.random()*180).setDepth(111);
+      const c=this.add.rectangle(
+        Math.random()*w,-20-Math.random()*180,
+        4+Math.random()*6,10+Math.random()*14,color,.98
+      ).setAngle(Math.random()*180).setDepth(122);
       this.tweens.add({
         targets:c,
-        y:h+50,
-        x:x+(Math.random()-.5)*120,
-        angle:c.angle+360*(Math.random()>.5?1:-1),
-        alpha:.12,
-        duration:1200+Math.random()*1000,
-        delay:Math.random()*260,
+        y:h+60,
+        x:c.x+(Math.random()-.5)*160,
+        angle:c.angle+(Math.random()>.5?540:-540),
+        alpha:.05,
+        duration:1050+Math.random()*1200,
+        delay:Math.random()*200,
         ease:'Sine.easeIn',
         onComplete:()=>c.destroy()
       });
     }
   }
 
+  fxArcadeText(stage,mainColor,accentColor,title,subtitle){
+    const w=this.scale.width;
+    const y=this.by+CFG.boardH*.38;
+
+    const plate=this.add.rectangle(w/2,y,330,112,0x000000,.82)
+      .setStrokeStyle(4,mainColor,1)
+      .setDepth(130)
+      .setScale(.05,.7)
+      .setAlpha(0);
+
+    const glow=this.add.rectangle(w/2,y,338,120,accentColor,.12)
+      .setDepth(129)
+      .setScale(.05,.7)
+      .setAlpha(0);
+
+    const st=this.add.text(w/2,y-21,`STAGE ${stage}`,{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:stage===10?'42px':'36px',
+      color:'#ffffff',
+      stroke:'#000000',strokeThickness:8
+    }).setOrigin(.5).setDepth(132).setScale(.3).setAlpha(0);
+
+    const ttl=this.add.text(w/2,y+16,title,{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'16px',
+      color:Phaser.Display.Color.IntegerToColor(mainColor).rgba,
+      stroke:'#000000',strokeThickness:4
+    }).setOrigin(.5).setDepth(132).setAlpha(0);
+
+    const sub=this.add.text(w/2,y+39,subtitle,{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'9px',
+      color:'#d9e6ef'
+    }).setOrigin(.5).setDepth(132).setAlpha(0);
+
+    this.tweens.add({
+      targets:[plate,glow],
+      alpha:1,scaleX:1,scaleY:1,
+      duration:170,ease:'Back.easeOut',
+      hold:500,yoyo:true,
+      onComplete:()=>{plate.destroy();glow.destroy();}
+    });
+    this.tweens.add({
+      targets:st,
+      alpha:1,scale:1.12,
+      duration:180,ease:'Back.easeOut',
+      hold:330,yoyo:true,
+      onComplete:()=>st.destroy()
+    });
+    this.tweens.add({
+      targets:[ttl,sub],
+      alpha:1,
+      duration:180,delay:70,
+      hold:320,yoyo:true,
+      onComplete:()=>{ttl.destroy();sub.destroy();}
+    });
+  }
+
   startStageAmbientFX(stage){
     this.clearStageAmbientFX();
-
-    const palette=[
-      [0x7ad7ff,0xffffff,0xffe082],
-      [0xffd54f,0xffffff,0xef5350],
-      [0xb388ff,0x7c4dff,0xff4081],
-      [0xff80ab,0xffffff,0xffd54f],
-      [0x4dd0e1,0xffb74d,0xffffff],
-      [0xff7043,0xffca28,0x7e57c2],
-      [0x5c6bc0,0x26c6da,0xffd54f],
-      [0x66bb6a,0x26a69a,0xb2ff59],
-      [0xffffff,0xef5350,0xffd54f],
-      [0xffd54f,0xffffff,0xff8f00]
-    ][stage-1]||[0xffffff];
-
     const w=this.scale.width,h=this.scale.height;
+    const palette=[
+      [0x7ad7ff,0xffffff],
+      [0xffd54f,0xef5350],
+      [0xb388ff,0xff4081],
+      [0xff80ab,0xffffff],
+      [0x4dd0e1,0xffb74d],
+      [0xff7043,0xffca28],
+      [0x5c6bc0,0x26c6da],
+      [0x66bb6a,0xb2ff59],
+      [0xffffff,0xef5350],
+      [0xffd54f,0xffffff]
+    ][stage-1];
 
-    // Small ambient edge particles only; never cover the central playfield.
-    for(let i=0;i<10;i++){
-      const side=i%2===0?-1:1;
-      const x=side<0 ? 5+Math.random()*22 : w-5-Math.random()*22;
-      const y=95+Math.random()*(h-140);
-      const p=this.add.circle(x,y,1.2+Math.random()*2.4,palette[i%palette.length],.20+.18*Math.random())
+    for(let i=0;i<14;i++){
+      const left=i%2===0;
+      const x=left?8+Math.random()*20:w-8-Math.random()*20;
+      const y=80+Math.random()*(h-140);
+      const p=this.add.circle(x,y,1.2+Math.random()*2.8,palette[i%2],.16+.18*Math.random())
         .setDepth(2);
       this.stageAmbientObjects.push(p);
       const tw=this.tweens.add({
         targets:p,
-        y:y-55-Math.random()*90,
-        x:x+side*(Math.random()*8),
-        alpha:{from:p.alpha,to:.03},
-        scale:{from:1,to:1.8},
-        duration:1700+Math.random()*1900,
-        delay:Math.random()*1200,
-        yoyo:true,
-        repeat:-1,
-        ease:'Sine.easeInOut'
+        y:y-60-Math.random()*120,
+        x:x+(left?1:-1)*(4+Math.random()*10),
+        alpha:{from:.32,to:.03},
+        scale:{from:1,to:1.9},
+        duration:1300+Math.random()*1600,
+        delay:Math.random()*1000,
+        yoyo:true,repeat:-1,ease:'Sine.easeInOut'
       });
       this.stageAmbientTweens.push(tw);
     }
 
-    // Higher stages gain periodic subtle edge flashes.
-    if(stage>=6){
+    if(stage>=4){
       const timer=this.time.addEvent({
-        delay:2100-Math.min(700,(stage-6)*140),
+        delay:1800-Math.min(650,(stage-4)*90),
         loop:true,
         callback:()=>{
           if(this.ended||this.stageCutin)return;
-          const col=palette[(Math.random()*palette.length)|0];
-          const side=Math.random()<.5?0:w;
-          const ray=this.add.rectangle(side,120+Math.random()*(h-240),105,2,col,.18)
-            .setDepth(2).setAngle(side===0?-8:188);
+          const c=palette[(Math.random()*palette.length)|0];
+          const left=Math.random()<.5;
+          const ray=this.add.rectangle(left?-80:w+80,100+Math.random()*(h-200),150,2,c,.17)
+            .setAngle(left?-12:192).setDepth(2);
           this.tweens.add({
             targets:ray,
-            x:side===0?120:w-120,
+            x:left?180:w-180,
             alpha:0,
-            duration:480,
+            duration:420,
             onComplete:()=>ray.destroy()
           });
-        }
-      });
-      this.stageAmbientTimers.push(timer);
-    }
-
-    if(stage===10){
-      const timer=this.time.addEvent({
-        delay:2600,
-        loop:true,
-        callback:()=>{
-          if(this.ended||this.stageCutin)return;
-          const g=this.add.graphics().setDepth(3);
-          g.lineStyle(2,0xffd54f,.24);
-          g.beginPath();
-          const x=Math.random()<.5?18:w-18;
-          g.moveTo(x,95);
-          let px=x;
-          for(let j=1;j<=6;j++){
-            px+=(Math.random()-.5)*18;
-            g.lineTo(px,95+j*62);
-          }
-          g.strokePath();
-          this.tweens.add({targets:g,alpha:0,duration:260,onComplete:()=>g.destroy()});
         }
       });
       this.stageAmbientTimers.push(timer);
@@ -1458,134 +1477,158 @@ class GameScene extends Phaser.Scene{
   stageArrivalFX(stage){
     const w=this.scale.width,h=this.scale.height;
     const cx=w/2;
-    const cy=this.by+CFG.boardH*.43;
+    const cy=this.by+CFG.boardH*.44;
 
-    const P=[
-      {main:0x7ad7ff,accent:0xffe082,flash:[155,225,255],label:'#eafaff',sub:'SKY BURST'},
-      {main:0xffd54f,accent:0xef5350,flash:[255,220,150],label:'#fff3c4',sub:'MARCH PARADE'},
-      {main:0xb388ff,accent:0xff4081,flash:[190,150,255],label:'#f2e8ff',sub:'DARK REQUIEM'},
-      {main:0xff80ab,accent:0xffffff,flash:[255,165,210],label:'#ffe9f1',sub:'CAN-CAN FEVER'},
-      {main:0x4dd0e1,accent:0xffb74d,flash:[135,235,255],label:'#e5fcff',sub:'HEROIC RUSH'},
-      {main:0xff7043,accent:0xffca28,flash:[255,150,95],label:'#fff0df',sub:'DANCE IGNITION'},
-      {main:0x5c6bc0,accent:0xffd54f,flash:[120,145,255],label:'#edf0ff',sub:'JAZZ NIGHT'},
-      {main:0x66bb6a,accent:0xb2ff59,flash:[120,230,165],label:'#e9ffe9',sub:'MOUNTAIN KING'},
-      {main:0xffffff,accent:0xef5350,flash:[255,245,220],label:'#ffffff',sub:'VICTORY MARCH'},
-      {main:0xffd54f,accent:0xffffff,flash:[255,210,70],label:'#fff2a8',sub:'FINAL OVERDRIVE'}
+    const C=[
+      {m:0x7ad7ff,a:0xffe082,f:[150,220,255],t:'SKY RUSH',s:'READY'},
+      {m:0xffd54f,a:0xef5350,f:[255,225,160],t:'MARCH BREAK',s:'GO! GO! GO!'},
+      {m:0xb388ff,a:0xff4081,f:[190,145,255],t:'REQUIEM BLAST',s:'DANGER'},
+      {m:0xff80ab,a:0xffffff,f:[255,165,210],t:'CAN-CAN FEVER',s:'SHOW TIME'},
+      {m:0x4dd0e1,a:0xffb74d,f:[130,235,255],t:'HEROIC RUSH',s:'FULL SPEED'},
+      {m:0xff7043,a:0xffca28,f:[255,145,85],t:'DANCE IGNITION',s:'BURN UP'},
+      {m:0x5c6bc0,a:0xffd54f,f:[110,140,255],t:'JAZZ ATTACK',s:'SWING HARD'},
+      {m:0x66bb6a,a:0xb2ff59,f:[115,235,165],t:'MOUNTAIN KING',s:'WARNING'},
+      {m:0xffffff,a:0xef5350,f:[255,245,225],t:'VICTORY MARCH',s:'CLIMAX'},
+      {m:0xffd54f,a:0xffffff,f:[255,210,70],t:'FINAL OVERDRIVE',s:'MAXIMUM'}
     ][stage-1];
 
-    // Every stage now starts with a 10th-stage-class multi-layer hit.
-    this.cameras.main.flash(stage===10?220:150,...P.flash);
-    this.cameras.main.shake(stage===10?420:250,stage===10?.016:.009);
+    // Arcade hit sequence: flash -> zoom -> shake -> scanline
+    this.fxArcadeFlash(C.m,.42,95);
+    this.time.delayedCall(95,()=>this.fxArcadeFlash(C.a,.28,85));
+    this.cameras.main.shake(stage===10?520:330,stage===10?.021:.013);
 
-    // short dark veil makes bright FX pop without hiding gameplay
-    const veil=this.add.rectangle(w/2,h/2,w,h,0x000000,stage===10?.36:.18).setDepth(106);
-    this.tweens.add({targets:veil,alpha:0,duration:520,onComplete:()=>veil.destroy()});
+    // Camera zoom punch
+    const cam=this.cameras.main;
+    const z0=cam.zoom;
+    this.tweens.add({
+      targets:cam,
+      zoom:stage===10?1.085:1.055,
+      duration:90,
+      yoyo:true,
+      ease:'Quad.easeOut',
+      onComplete:()=>cam.setZoom(z0)
+    });
 
-    this.fxShockwave(cx,cy,P.main,stage===10?5:4,stage===10?9:7.5);
-    this.fxBurst(cx,cy,P.main,stage===10?48:36,95,stage===10?270:220);
-    this.fxBurst(cx,cy,P.accent,stage===10?30:20,70,185);
-    this.fxEdgeRays(P.accent,stage===10?14:10);
+    this.fxScanlines(stage===10?1100:850,stage===10?.22:.14);
+    this.fxShockwave(cx,cy,C.m,stage===10?8:(stage===1?6:7),stage===10?11.5:(stage===1?9.3:10.2));
+    this.fxBurst(cx,cy,C.m,stage===10?84:(stage===1?58:70),70,stage===10?330:(stage===1?280:305));
+    this.fxBurst(cx,cy,C.a,stage===10?58:(stage===1?36:46),60,stage===10?255:245);
+    this.fxLaserCross(C.a,stage===10?12:(stage===1?8:10));
 
-    // stage-specific high-impact layer
-    switch(stage){
-      case 1:
-        this.fxCometRain(P.main,12,16);
-        this.fxShards(cx,cy,P.accent,14);
-        break;
-      case 2:
-        this.fxConfetti([0xffd54f,0xffffff,0xef5350],38);
-        this.fxCometRain(0xffffff,8,8);
-        break;
-      case 3:
-        this.fxLightning(P.main,3,.8);
-        this.fxShards(cx,cy,P.accent,24);
-        break;
-      case 4:
-        this.fxEdgeRays(P.main,16);
-        this.fxConfetti([0xff80ab,0xffffff,0xffd54f],28);
-        break;
-      case 5:
-        this.fxCometRain(P.accent,20,25);
-        this.fxShards(cx,cy,P.main,26);
-        break;
-      case 6:
-        this.fxCometRain(P.main,18,14);
-        this.fxConfetti([0xff7043,0xffca28,0x7e57c2],30);
-        this.fxLightning(P.accent,2,.65);
-        break;
-      case 7:
-        this.fxShockwave(cx,cy,P.accent,3,6);
-        this.fxCometRain(P.main,12,-12);
-        this.fxShards(cx,cy,P.accent,20);
-        break;
-      case 8:
-        this.fxLightning(P.accent,4,.9);
-        this.fxShards(cx,cy,P.main,34);
-        this.fxCometRain(0x9cffb0,10,20);
-        break;
-      case 9:
-        this.fxConfetti([0xffffff,0xef5350,0xffd54f],44);
-        this.fxEdgeRays(0xffffff,14);
-        this.fxCometRain(P.accent,10,10);
-        break;
-      case 10:
-        this.fxLightning(0xffd54f,6,1.35);
-        this.fxLightning(0xffffff,3,.7);
-        this.fxShards(cx,cy,0xffd54f,40);
-        this.fxCometRain(0xffd54f,24,20);
-        this.fxConfetti([0xffd54f,0xffffff,0xff8f00],42);
-        break;
+    // 5.9: Every stage receives a boss-class multi-wave signature attack.
+    if(stage===1){
+      this.fxCometRain(C.m,24,15);
+      this.fxConfetti([C.m,C.a,0xffffff],44);
+      this.fxLaserCross(C.a,9);
+      this.fxBurst(cx,cy,C.a,54,75,245);
+      this.time.delayedCall(180,()=>this.fxCometRain(0xffffff,12,-12));
+      this.time.delayedCall(300,()=>this.fxArcadeFlash(C.m,.18,90));
+
+    }else if(stage===2){
+      this.fxConfetti([0xffd54f,0xffffff,0xef5350],92);
+      this.fxCometRain(0xffffff,26,6);
+      this.fxLaserCross(0xffd54f,12);
+      this.fxLightning(0xffd54f,5,.80);
+      this.fxBurst(cx,cy,0xef5350,66,85,270);
+      this.time.delayedCall(170,()=>this.fxConfetti([0xffffff,0xffd54f],40));
+      this.time.delayedCall(310,()=>this.fxArcadeFlash(0xffd54f,.20,95));
+
+    }else if(stage===3){
+      this.fxLightning(C.m,9,1.18);
+      this.fxLightning(C.a,5,.72);
+      this.fxCometRain(C.a,28,20);
+      this.fxBurst(cx,cy,C.a,86,85,315);
+      this.fxLaserCross(C.m,12);
+      this.time.delayedCall(180,()=>this.fxLightning(0xffffff,4,.62));
+      this.time.delayedCall(320,()=>this.fxArcadeFlash(C.a,.22,95));
+
+    }else if(stage===4){
+      this.fxLaserCross(C.m,15);
+      this.fxConfetti([0xff80ab,0xffffff,0xffd54f],88);
+      this.fxCometRain(0xffffff,24,-18);
+      this.fxLightning(0xff80ab,5,.82);
+      this.fxBurst(cx,cy,0xffd54f,68,80,270);
+      this.time.delayedCall(175,()=>this.fxLaserCross(0xffffff,8));
+      this.time.delayedCall(310,()=>this.fxArcadeFlash(0xff80ab,.20,90));
+
+    }else if(stage===5){
+      this.fxCometRain(C.a,38,24);
+      this.fxLightning(C.m,7,.96);
+      this.fxLaserCross(0xffffff,12);
+      this.fxBurst(cx,cy,C.m,84,85,310);
+      this.fxConfetti([C.m,C.a,0xffffff],56);
+      this.time.delayedCall(180,()=>this.fxCometRain(0xffffff,16,-20));
+      this.time.delayedCall(325,()=>this.fxArcadeFlash(C.a,.22,100));
+
+    }else if(stage===6){
+      this.fxLightning(C.a,8,1.12);
+      this.fxLightning(C.m,4,.72);
+      this.fxCometRain(C.m,36,13);
+      this.fxConfetti([0xff7043,0xffca28,0x7e57c2],78);
+      this.fxLaserCross(C.a,11);
+      this.fxBurst(cx,cy,C.m,76,85,290);
+      this.time.delayedCall(180,()=>this.fxLightning(0xffffff,4,.62));
+      this.time.delayedCall(320,()=>this.fxArcadeFlash(C.m,.22,95));
+
+    }else if(stage===7){
+      this.fxLightning(C.a,8,.96);
+      this.fxLaserCross(C.m,13);
+      this.fxConfetti([0x5c6bc0,0x26c6da,0xffd54f],72);
+      this.fxCometRain(C.a,28,-14);
+      this.fxBurst(cx,cy,C.m,82,80,300);
+      this.time.delayedCall(185,()=>this.fxLaserCross(0xffd54f,8));
+      this.time.delayedCall(325,()=>this.fxArcadeFlash(C.a,.20,95));
+
+    }else if(stage===8){
+      this.fxLightning(C.a,10,1.22);
+      this.fxLightning(0xffffff,4,.66);
+      this.fxCometRain(0xb2ff59,34,22);
+      this.fxBurst(cx,cy,C.m,96,78,325);
+      this.fxLaserCross(C.a,13);
+      this.fxConfetti([C.m,C.a,0xffffff],66);
+      this.time.delayedCall(170,()=>this.fxLightning(C.m,6,1.0));
+      this.time.delayedCall(315,()=>this.fxArcadeFlash(C.a,.24,100));
+
+    }else if(stage===9){
+      this.fxConfetti([0xffffff,0xef5350,0xffd54f],108);
+      this.fxLaserCross(0xffffff,15);
+      this.fxCometRain(C.a,32,10);
+      this.fxLightning(C.a,8,1.04);
+      this.fxBurst(cx,cy,C.m,98,78,325);
+      this.fxLightning(0xffffff,4,.64);
+      this.time.delayedCall(180,()=>this.fxLaserCross(C.a,8));
+      this.time.delayedCall(320,()=>this.fxArcadeFlash(0xffffff,.24,100));
+
+    }else if(stage===10){
+      // Final stage stays the ceiling: strongest and has two extra waves.
+      this.fxLightning(0xffd54f,11,1.55);
+      this.fxLightning(0xffffff,6,.90);
+      this.fxCometRain(0xffd54f,44,20);
+      this.fxLaserCross(0xffffff,16);
+      this.fxConfetti([0xffd54f,0xffffff,0xff8f00],100);
+      this.fxBurst(cx,cy,0xffd54f,110,70,350);
+      this.time.delayedCall(160,()=>this.fxLightning(0xffd54f,8,1.38));
+      this.time.delayedCall(280,()=>this.fxLaserCross(0xffd54f,8));
+      this.time.delayedCall(400,()=>this.fxArcadeFlash(0xffd54f,.25,110));
     }
 
-    // Central title plate
-    const plate=this.add.rectangle(cx,this.by+45,stage===10?268:230,56,0x06090d,.78)
-      .setStrokeStyle(stage===10?3:2,P.main,.92)
-      .setDepth(116)
-      .setScale(.2,.8)
-      .setAlpha(0);
+    this.fxArcadeText(stage,C.m,C.a,C.t,C.s);
 
-    const label=this.add.text(cx,this.by+32,`STAGE ${stage}`,{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:stage===10?'34px':'29px',
-      fontStyle:'bold',
-      color:P.label,
-      stroke:'#000000',
-      strokeThickness:7
-    }).setOrigin(.5).setDepth(118).setAlpha(0).setScale(.52);
+    // Extra "warning stripe" for 3,8,10
+    if([3,8,10].includes(stage)){
+      const warn=this.add.rectangle(w/2,this.by+CFG.boardH*.72,w+100,30,0x000000,.72)
+        .setDepth(128).setAlpha(0);
+      const wt=this.add.text(w/2,warn.y,stage===10?'FINAL STAGE':'WARNING',{
+        fontFamily:'Arial Black, sans-serif',
+        fontSize:'14px',
+        color:stage===10?'#ffd54f':'#ffffff',
+        letterSpacing:3
+      }).setOrigin(.5).setDepth(129).setAlpha(0);
+      this.tweens.add({targets:[warn,wt],alpha:1,duration:110,hold:260,yoyo:true,
+        onComplete:()=>{warn.destroy();wt.destroy();}});
+    }
 
-    const sub=this.add.text(cx,this.by+61,P.sub,{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'10px',
-      fontStyle:'bold',
-      color:'#d8e7ef',
-      letterSpacing:2
-    }).setOrigin(.5).setDepth(118).setAlpha(0);
-
-    this.tweens.add({
-      targets:plate,
-      alpha:1,scaleX:1,scaleY:1,
-      duration:190,ease:'Back.easeOut',
-      hold:500,
-      yoyo:true,
-      onComplete:()=>plate.destroy()
-    });
-    this.tweens.add({
-      targets:label,
-      alpha:1,scale:1,
-      duration:220,ease:'Back.easeOut',
-      hold:420,yoyo:true,
-      onComplete:()=>label.destroy()
-    });
-    this.tweens.add({
-      targets:sub,
-      alpha:1,
-      duration:210,delay:80,
-      hold:360,yoyo:true,
-      onComplete:()=>sub.destroy()
-    });
-
-    // persistent low-intensity ambience after the entry blast
-    this.time.delayedCall(380,()=>this.startStageAmbientFX(stage));
+    this.time.delayedCall(450,()=>this.startStageAmbientFX(stage));
   }
 
   enterStage(newStage){
