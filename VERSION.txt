@@ -1,13 +1,17 @@
-NEKO BLOCKS DX 5.19 — VERTICAL DROP
+NEKO BLOCKS DX 5.20 — LAYOUT BREAKTHROUGH
 
-Changes:
-- AUTO DROP toggle moved to a dedicated vertical button on the right side.
-- Vertical button is outside the board and always visible/tappable.
-- Yellow LED = instant drop mode ON.
-- Gray LED = normal drag drop mode.
-- SCORE / STAGE / PAUSE are aligned to the same top baseline and same height.
-- NEXT remains on its own second row.
-- Existing rescue star, combo rules and touch controls are preserved.
+Structural breakthrough:
+- Canvas width expanded from 360 to 420.
+- Board remains centered with real side margin.
+- Right side now has a dedicated 54×226 AUTO DROP control lane.
+- AUTO DROP uses a separate invisible 60×236 hit zone, so it is reliably tappable.
+- AUTO DROP shows clear OFF / ON state, arrow and LED.
+- Top HUD is numerically aligned:
+  SCORE center x=80, width=140
+  STAGE center x=230, width=140
+  PAUSE center x=365, width=70
+  all at y=30, height=50.
+- NEXT row re-centered for the wider canvas.
 
-BUILD 5.19 • VERTICAL DROP
-Cache: 5190
+BUILD 5.20 • LAYOUT BREAKTHROUGH
+Cache: 5200

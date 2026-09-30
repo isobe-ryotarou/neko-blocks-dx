@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.19
+  NEKO BLOCKS DX 5.20
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -697,7 +697,7 @@ class TitleScene extends Phaser.Scene{
       });
     }
 
-    const cats=[[34,132,0,-12],[91,112,2,8],[269,112,3,-8],[326,132,1,12]];
+    const cats=[[44,132,0,-12],[112,112,2,8],[308,112,3,-8],[376,132,1,12]];
     for(const [x,y,c,a] of cats){
       const s=this.add.image(x,y,'cat'+c).setScale(1.22).setAngle(a).setDepth(4);
       this.tweens.add({
@@ -768,7 +768,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.19 • VERTICAL DROP',{
+    this.add.text(w/2,575,'BUILD 5.20 • LAYOUT BREAKTHROUGH',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -1016,9 +1016,12 @@ class GameScene extends Phaser.Scene{
   }
 
   buildUI(){
-    // 5.19 HUD realignment:
-    // SCORE / STAGE / PAUSE share one clean baseline.
-    // AUTO DROP is a dedicated vertical control on the right.
+    // ============================================================
+    // 5.20 LAYOUT BREAKTHROUGH
+    // Canvas is 420px wide.
+    // Board remains centered. Right side gets a real control lane.
+    // Top HUD uses a fixed alignment grid.
+    // ============================================================
 
     this.boardEmboss=this.addEmbossFrame(
       this.bx+CFG.boardW/2,
@@ -1046,111 +1049,140 @@ class GameScene extends Phaser.Scene{
     this.activeLayer=this.add.container(0,0).setDepth(6);
     this.nextLayer=this.add.container(0,0).setDepth(20);
 
-    // ---------- TOP ROW ----------
-    const topY=28;
-    const cardH=48;
+    // ---------- TOP HUD GRID ----------
+    const topY=30;
+    const topH=50;
 
-    this.scoreCard=this.addEmbossFrame(61,topY,108,cardH,0x061018,0xffd54f,18);
-    this.scoreLabel=this.add.text(17,10,'SCORE',{
+    // Exact aligned geometry:
+    // SCORE  x=80  w=140
+    // STAGE  x=230 w=140
+    // PAUSE  x=365 w=70
+    this.scoreCard=this.addEmbossFrame(80,topY,140,topH,0x061018,0xffd54f,18);
+    this.stageCard=this.addEmbossFrame(230,topY,140,topH,0x061018,0x56b4e9,18);
+    this.pauseFrame=this.addEmbossFrame(365,topY,70,topH,0x061018,0xf0e442,18);
+
+    this.scoreLabel=this.add.text(21,11,'SCORE',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'10px',fontStyle:'bold',color:'#ffe88a'
     }).setDepth(22);
-    this.scoreT=this.add.text(17,21,'0',{
+
+    this.scoreT=this.add.text(21,23,'0',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'20px',fontStyle:'bold',
+      fontSize:'21px',fontStyle:'bold',
       color:'#ffffff',stroke:'#000000',strokeThickness:4
     }).setDepth(22);
 
-    this.stageCard=this.addEmbossFrame(176,topY,108,cardH,0x061018,0x56b4e9,18);
-    this.stageLabel=this.add.text(132,10,'STAGE',{
+    this.stageLabel=this.add.text(171,11,'STAGE',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'10px',fontStyle:'bold',color:'#91e4ff'
     }).setDepth(22);
-    this.stageT=this.add.text(132,21,'1',{
+
+    this.stageT=this.add.text(171,23,'1',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'20px',fontStyle:'bold',
+      fontSize:'21px',fontStyle:'bold',
       color:'#ffffff',stroke:'#000000',strokeThickness:4
     }).setDepth(22);
 
-    this.pauseFrame=this.addEmbossFrame(295,topY,48,cardH,0x061018,0xf0e442,25);
-    this.pauseBtn=this.add.text(295,topY,'Ⅱ',{
+    this.pauseBtn=this.add.text(365,topY,'Ⅱ',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'18px',fontStyle:'bold',color:'#ffffff'
+      fontSize:'20px',fontStyle:'bold',color:'#ffffff'
     }).setOrigin(.5).setDepth(35).setInteractive({useHandCursor:true});
 
     this.pauseBtn.on('pointerdown',()=>{
       AUDIO.userGestureResume();
-      this.pauseBtn.setScale(.92).setAlpha(.74);
+      this.pauseBtn.setScale(.92).setAlpha(.72);
       this.togglePause();
     });
     this.pauseBtn.on('pointerup',()=>this.pauseBtn.setScale(1).setAlpha(1));
     this.pauseBtn.on('pointerout',()=>this.pauseBtn.setScale(1).setAlpha(1));
 
     // ---------- NEXT ROW ----------
-    this.nextHeaderFrame=this.addEmbossFrame(64,82,104,34,0x09141a,0xffd54f,18);
-    this.nextT=this.add.text(64,82,'次  NEXT',{
+    const nextY=88;
+    this.nextHeaderFrame=this.addEmbossFrame(66,nextY,112,36,0x09141a,0xffd54f,18);
+    this.nextT=this.add.text(66,nextY,'次  NEXT',{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
       fontSize:'13px',fontStyle:'bold',color:'#fff0a0'
     }).setOrigin(.5).setDepth(22);
 
-    this.scoreRuleHint=this.add.text(this.scale.width/2,111,'得点：消去数 × 10 × コンボ数',{
+    this.scoreRuleHint=this.add.text(this.scale.width/2,116,'得点：消去数 × 10 × コンボ数',{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
       fontSize:'10px',fontStyle:'bold',
       color:'#20323d',
-      backgroundColor:'rgba(255,255,255,0.80)',
+      backgroundColor:'rgba(255,255,255,0.82)',
       padding:{left:8,right:8,top:3,bottom:3}
     }).setOrigin(.5).setDepth(24).setAlpha(0);
 
     this.tweens.add({
       targets:this.scoreRuleHint,
-      alpha:1,duration:280,delay:500,
-      hold:1600,yoyo:true,
+      alpha:1,duration:260,delay:450,
+      hold:1450,yoyo:true,
       onComplete:()=>this.scoreRuleHint.setVisible(false)
     });
 
-    // ---------- RIGHT VERTICAL AUTO DROP ----------
-    const dropX=342;
-    const dropY=this.by+CFG.boardH*.48;
+    // ---------- REAL RIGHT-SIDE AUTO DROP CONTROL ----------
+    const dropX=390;
+    const dropY=this.by+CFG.boardH*.50;
 
-    this.dropModeFrame=this.addEmbossFrame(
-      dropX,dropY,30,150,0x071019,0x56b4e9,30
-    );
+    // Visual panel
+    this.dropPanelShadow=this.add.rectangle(dropX+3,dropY+5,56,230,0x000000,.34)
+      .setDepth(29);
+    this.dropPanel=this.add.rectangle(dropX,dropY,54,226,0x071019,.98)
+      .setStrokeStyle(3,0x56b4e9,.95)
+      .setDepth(30);
 
-    this.dropModeBtn=this.add.text(dropX,dropY,`A
-U
-T
-O
+    this.dropPanelTop=this.add.rectangle(dropX,dropY-109,44,3,0xffffff,.24).setDepth(31);
+    this.dropPanelLeft=this.add.rectangle(dropX-25,dropY,3,208,0xffffff,.15).setDepth(31);
+    this.dropPanelBottom=this.add.rectangle(dropX,dropY+109,44,4,0x000000,.48).setDepth(31);
+    this.dropPanelRight=this.add.rectangle(dropX+25,dropY,4,208,0x000000,.44).setDepth(31);
 
-D
-R
-O
-P`,{
+    this.dropModeTitle=this.add.text(dropX,dropY-72,'AUTO',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'10px',fontStyle:'bold',
-      align:'center',
-      color:'#ffffff',
-      lineSpacing:1
-    }).setOrigin(.5).setDepth(36).setInteractive(
-      new Phaser.Geom.Rectangle(-15,-75,30,150),
-      Phaser.Geom.Rectangle.Contains
-    );
+      fontSize:'14px',fontStyle:'bold',
+      color:'#ffffff'
+    }).setOrigin(.5).setDepth(33);
 
-    this.dropModeLed=this.add.circle(dropX,dropY+60,5,0x56636b,1).setDepth(37);
+    this.dropModeTitle2=this.add.text(dropX,dropY-50,'DROP',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'14px',fontStyle:'bold',
+      color:'#ffffff'
+    }).setOrigin(.5).setDepth(33);
+
+    this.dropArrow=this.add.text(dropX,dropY-8,'▼',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'28px',fontStyle:'bold',
+      color:'#56b4e9'
+    }).setOrigin(.5).setDepth(33);
+
+    this.dropState=this.add.text(dropX,dropY+45,'OFF',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'15px',fontStyle:'bold',
+      color:'#9fb8c7'
+    }).setOrigin(.5).setDepth(33);
+
+    this.dropModeLed=this.add.circle(dropX,dropY+78,8,0x56636b,1)
+      .setStrokeStyle(2,0xffffff,.22)
+      .setDepth(33);
+
+    // Dedicated invisible hit zone. This is independent of text bounds.
+    this.dropHit=this.add.zone(dropX,dropY,60,236)
+      .setDepth(40)
+      .setInteractive({useHandCursor:true});
 
     const refreshDropMode=()=>{
-      this.dropModeBtn.setColor(this.instantDropMode?'#fff3a0':'#ffffff');
-      this.dropModeFrame.setAlpha(this.instantDropMode?1:.88);
-      this.dropModeLed.setFillStyle(this.instantDropMode?0xf0e442:0x56636b,1);
+      const on=this.instantDropMode;
+      this.dropState.setText(on?'ON':'OFF');
+      this.dropState.setColor(on?'#fff3a0':'#9fb8c7');
+      this.dropArrow.setColor(on?'#f0e442':'#56b4e9');
+      this.dropModeLed.setFillStyle(on?0xf0e442:0x56636b,1);
+      this.dropPanel.setStrokeStyle(3,on?0xf0e442:0x56b4e9,on?1:.95);
     };
 
-    this.dropModeBtn.on('pointerdown',()=>{
+    this.dropHit.on('pointerdown',()=>{
       AUDIO.userGestureResume();
       this.instantDropMode=!this.instantDropMode;
-      this.dropModeBtn.setScale(.94).setAlpha(.72);
+      this.cameras.main.flash(70,this.instantDropMode?255:120,this.instantDropMode?220:190,80);
       refreshDropMode();
     });
-    this.dropModeBtn.on('pointerup',()=>this.dropModeBtn.setScale(1).setAlpha(1));
-    this.dropModeBtn.on('pointerout',()=>this.dropModeBtn.setScale(1).setAlpha(1));
     refreshDropMode();
 
     this.chainT=this.add.text(this.scale.width/2,this.by+155,'',{
@@ -2507,25 +2539,22 @@ P`,{
     this.nextLayer.removeAll(true);
     if(!this.nextQueue || !this.nextQueue.length)return;
 
-    // Clear "NEXT 1 / 2 / 3" hierarchy.
-    const centers=[150,224,298];
-    const centerY=83;
+    const centers=[168,252,332];
+    const centerY=88;
 
     this.nextQueue.slice(0,3).forEach((piece,index)=>{
       const isFirst=index===0;
       const cellSize=isFirst?19:16;
       const cx=centers[index];
       const cy=centerY;
-      const slotW=isFirst?70:62;
-      const slotH=isFirst?60:56;
+      const slotW=isFirst?72:66;
+      const slotH=isFirst?62:58;
       const accent=isFirst?0xffd54f:0x56b4e9;
 
-      // drop shadow
       this.nextLayer.add(
         this.add.rectangle(cx+3,cy+4,slotW+5,slotH+5,0x000000,.24)
       );
 
-      // embossed slot
       const outer=this.add.rectangle(cx,cy,slotW+2,slotH+2,0x071019,.98)
         .setStrokeStyle(2,accent,isFirst?1:.55);
       const top=this.add.rectangle(cx,cy-slotH/2+2,slotW-10,2,0xffffff,.24);
@@ -2785,7 +2814,7 @@ STAGE ${this.stage}`,
 const config={
   type:Phaser.AUTO,
   parent:'game',
-  width:360,
+  width:420,
   height:720,
   backgroundColor:'#eef7fb',
   scene:[BootScene,TitleScene,GameScene],
