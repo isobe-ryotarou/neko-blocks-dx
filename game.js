@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.3
+  NEKO BLOCKS DX 5.4
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -25,12 +25,11 @@ const CFG={
 // Color-blind-conscious palette:
 // NO red and NO green.
 const COLORS=[
-  0x0072b2, // blue
-  0x56b4e9, // sky blue
-  0xf0e442, // yellow
-  0xcc79a7, // purple-pink
-  0xe69f00, // orange
-  0x6b6b6b  // gray
+  0x0072b2,
+  0x56b4e9,
+  0xf0e442,
+  0xcc79a7,
+  0xe69f00
 ];
 
 const SHAPE_MASKS=[
@@ -248,7 +247,7 @@ class PieceFactory{
   }
 
   setStage(stage){this.stage=stage}
-  colorCount(){return this.stage>=7?6:5}
+  colorCount(){return 5}
 
   pickShape(){
     let r=Math.random()*100;
@@ -518,40 +517,116 @@ class TitleScene extends Phaser.Scene{
   create(){
     setControlsVisible(false);
     const w=this.scale.width,h=this.scale.height;
-    this.cameras.main.setBackgroundColor('#eef7fb');
+    this.cameras.main.setBackgroundColor('#071019');
 
-    this.add.text(w/2,h*.20,'NEKO BLOCKS DX',{
+    const bg=this.add.graphics();
+    bg.fillGradientStyle(0x102b3c,0x071019,0x12334a,0x05090e,1);
+    bg.fillRect(0,0,w,h);
+
+    for(let i=0;i<5;i++){
+      const band=this.add.rectangle(-110+i*90,145+i*48,245,17,0x56b4e9,.10)
+        .setAngle(-24).setDepth(1);
+      this.tweens.add({
+        targets:band,x:w+140,
+        duration:3500+i*430,delay:i*220,
+        repeat:-1,ease:'Linear'
+      });
+    }
+
+    for(let i=0;i<42;i++){
+      const p=this.add.circle(
+        Math.random()*w,Math.random()*h*.80,
+        .7+Math.random()*1.7,
+        i%4===0?0xf0e442:0xffffff,
+        .18+Math.random()*.55
+      ).setDepth(2);
+      this.tweens.add({
+        targets:p,y:p.y-35-Math.random()*65,
+        alpha:{from:p.alpha,to:.04},
+        duration:2200+Math.random()*3300,
+        yoyo:true,repeat:-1,
+        delay:Math.random()*900,
+        ease:'Sine.easeInOut'
+      });
+    }
+
+    const cats=[[44,168,0,-13],[82,145,2,9],[278,146,3,-8],[317,176,1,13]];
+    for(const [x,y,c,a] of cats){
+      const s=this.add.image(x,y,'cat'+c).setScale(1.55).setAngle(a).setDepth(4);
+      this.tweens.add({
+        targets:s,y:y-8,angle:a+(a>0?-3:3),
+        duration:1300+Math.random()*500,
+        yoyo:true,repeat:-1,ease:'Sine.easeInOut'
+      });
+    }
+
+    const logo=this.add.text(w/2,230,'NEKO BLOCKS',{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:'40px',fontStyle:'bold',
+      color:'#ffffff',stroke:'#0a3145',strokeThickness:8,
+      shadow:{offsetX:0,offsetY:0,color:'#56b4e9',blur:18,fill:true}
+    }).setOrigin(.5).setDepth(6).setScale(.72).setAlpha(0);
+
+    const dx=this.add.text(w/2,282,'DX',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'34px',fontStyle:'bold',
-      color:'#10212c',stroke:'#ffffff',strokeThickness:4
-    }).setOrigin(.5);
+      fontSize:'58px',fontStyle:'bold',
+      color:'#f0e442',stroke:'#4a3a00',strokeThickness:8,
+      shadow:{offsetX:0,offsetY:0,color:'#f0e442',blur:20,fill:true}
+    }).setOrigin(.5).setDepth(6).setScale(.15).setAlpha(0);
 
-    this.add.text(w/2,h*.29,'COLOR CHAIN',{
+    const sub=this.add.text(w/2,332,'COLOR CHAIN',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'20px',fontStyle:'bold',
-      color:'#0072b2'
-    }).setOrigin(.5);
+      fontSize:'21px',fontStyle:'bold',
+      color:'#56b4e9'
+    }).setOrigin(.5).setDepth(6).setAlpha(0);
 
-    this.add.text(w/2,h*.39,
-      '同じ色を上下左右で4個つなげると消える！\n消えた後は落下して、さらに揃えば連鎖！',
-      {align:'center',fontSize:'16px',color:'#33434f',lineSpacing:8}
-    ).setOrigin(.5);
+    this.tweens.add({targets:logo,alpha:1,scale:1,duration:520,ease:'Back.easeOut'});
+    this.tweens.add({targets:dx,alpha:1,scale:1,duration:460,delay:220,ease:'Back.easeOut'});
+    this.tweens.add({targets:sub,alpha:1,y:322,duration:420,delay:460,ease:'Cubic.easeOut'});
 
-    const start=this.add.text(w/2,h*.58,'START',{
-      fontFamily:'Arial Black, sans-serif',
-      fontSize:'30px',fontStyle:'bold',
-      color:'#ffffff',backgroundColor:'#111111',
-      padding:{left:34,right:34,top:14,bottom:14}
-    }).setOrigin(.5).setInteractive({useHandCursor:true});
-
-    start.on('pointerdown',()=>{
-      AUDIO.userGestureResume();
-      this.scene.start('Game');
+    const slash=this.add.rectangle(-120,255,180,5,0xffffff,0).setAngle(-18).setDepth(8);
+    this.time.delayedCall(620,()=>{
+      slash.setAlpha(.9);
+      this.tweens.add({
+        targets:slash,x:w+140,duration:420,ease:'Cubic.easeOut',
+        onComplete:()=>slash.destroy()
+      });
+      this.cameras.main.flash(75,190,235,255);
     });
 
-    this.add.text(w/2,h*.72,'v5.3  FULL REBUILD',{
-      fontSize:'12px',color:'#71808b'
-    }).setOrigin(.5);
+    this.add.text(w/2,395,
+      '同じ色を4つつなげて消せ。\n落下から生まれる連鎖が勝負を変える。',
+      {align:'center',fontSize:'15px',fontStyle:'bold',color:'#dbeef8',lineSpacing:7}
+    ).setOrigin(.5).setDepth(6);
+
+    const start=this.add.text(w/2,505,'▶  START',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'27px',fontStyle:'bold',
+      color:'#071019',backgroundColor:'#f0e442',
+      padding:{left:34,right:34,top:13,bottom:13}
+    }).setOrigin(.5).setDepth(10).setInteractive({useHandCursor:true});
+
+    const glow=this.add.rectangle(w/2,505,194,58,0xf0e442,.16).setDepth(9);
+    this.tweens.add({
+      targets:glow,scaleX:1.13,scaleY:1.22,alpha:.03,
+      duration:820,yoyo:true,repeat:-1,ease:'Sine.easeInOut'
+    });
+
+    start.on('pointerdown',()=>{
+      start.setScale(.94).setAlpha(.72);
+      AUDIO.userGestureResume();
+      this.time.delayedCall(90,()=>this.scene.start('Game'));
+    });
+    start.on('pointerup',()=>start.setScale(1).setAlpha(1));
+    start.on('pointerout',()=>start.setScale(1).setAlpha(1));
+
+    this.add.text(w/2,575,'BUILD 5.4',{
+      fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
+    }).setOrigin(.5).setDepth(6);
+
+    this.add.text(w/2,643,'CONNECT  •  DROP  •  CHAIN',{
+      fontFamily:'Arial Black, sans-serif',fontSize:'12px',color:'#9fb8c7'
+    }).setOrigin(.5).setDepth(6);
   }
 }
 
@@ -580,7 +655,7 @@ class GameScene extends Phaser.Scene{
     this.dropAccum=0;
 
     this.bx=Math.floor((this.scale.width-CFG.boardW)/2);
-    this.by=82;
+    this.by=96;
 
     this.buildUI();
     this.bindControls();
@@ -629,8 +704,14 @@ class GameScene extends Phaser.Scene{
       fontSize:'12px',fontStyle:'bold',color:'#14232d'
     }).setOrigin(1,0).setDepth(20);
 
-    this.musicT=this.add.text(this.scale.width/2,58,'',{
-      fontSize:'11px',fontStyle:'bold',color:'#596974'
+    this.musicBar=this.add.rectangle(
+      this.scale.width/2,72,246,24,0x071019,.84
+    ).setDepth(19).setStrokeStyle(1,0x56b4e9,.48);
+
+    this.musicT=this.add.text(this.scale.width/2,65,'',{
+      fontFamily:'Arial, "Noto Sans JP", sans-serif',
+      fontSize:'10px',fontStyle:'bold',
+      color:'#ecf9ff',align:'center',fixedWidth:232
     }).setOrigin(.5,0).setDepth(20);
 
     this.chainT=this.add.text(this.scale.width/2,this.by+155,'',{
@@ -750,7 +831,7 @@ class GameScene extends Phaser.Scene{
     this.next=this.factory.create();
 
     this.piece.x=Math.floor((CFG.cols-this.piece.matrix[0].length)/2);
-    this.piece.y=-2;
+    this.piece.y=0;
 
     if(this.board.collides(this.piece)){
       this.gameOver();
@@ -821,7 +902,12 @@ class GameScene extends Phaser.Scene{
         return;
       }
 
-      this.resolve(1);
+      // 5.4: settle every occupied cell to the bottom of its column
+      // before checking matches. This guarantees no floating cells / holes.
+      this.board.collapse();
+      this.redraw();
+
+      this.time.delayedCall(110,()=>this.resolve(1));
     });
   }
 
@@ -1084,19 +1170,78 @@ class GameScene extends Phaser.Scene{
     this.state='COMPLETE';
 
     const w=this.scale.width,h=this.scale.height;
-    this.cameras.main.flash(250,255,230,120);
+    this.add.rectangle(w/2,h/2,w,h,0x020406,1).setDepth(150);
 
-    const shade=this.add.rectangle(w/2,h/2,w,h,0x000000,.78).setDepth(150);
-    const t=this.add.text(w/2,h*.40,'完全制覇',{
-      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:'62px',fontStyle:'bold',
-      color:'#ffd54f',stroke:'#000000',strokeThickness:10
-    }).setOrigin(.5).setDepth(151);
+    for(let i=0;i<56;i++){
+      const p=this.add.circle(
+        Math.random()*w,h+Math.random()*160,
+        1+Math.random()*2.4,
+        i%3===0?0xffffff:0xf0e442,
+        .32+Math.random()*.65
+      ).setDepth(151);
+      this.tweens.add({
+        targets:p,
+        y:-30,x:p.x+(Math.random()-.5)*90,
+        duration:2500+Math.random()*2700,
+        delay:Math.random()*1200,
+        repeat:-1,ease:'Sine.easeIn'
+      });
+    }
 
-    this.add.text(w/2,h*.53,'100 CLEAR',{
+    const halo=this.add.circle(w/2,h*.40,84,0xf0e442,.06)
+      .setStrokeStyle(3,0xf0e442,.28).setDepth(151);
+
+    this.tweens.add({
+      targets:halo,scale:1.45,alpha:.01,
+      duration:1100,yoyo:true,repeat:-1,ease:'Sine.easeInOut'
+    });
+
+    const small=this.add.text(w/2,h*.25,'ALL STAGES COMPLETE',{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'26px',color:'#ffffff'
-    }).setOrigin(.5).setDepth(151);
+      fontSize:'18px',fontStyle:'bold',color:'#56b4e9'
+    }).setOrigin(.5).setDepth(153).setAlpha(0);
+
+    const title=this.add.text(w/2,h*.39,'完全制覇',{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:'60px',fontStyle:'bold',
+      color:'#fff8c6',stroke:'#6d5000',strokeThickness:10,
+      shadow:{offsetX:0,offsetY:0,color:'#f0e442',blur:18,fill:true}
+    }).setOrigin(.5).setDepth(154).setScale(2.2).setAlpha(0);
+
+    const sub=this.add.text(w/2,h*.52,'100 CLEAR',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'28px',fontStyle:'bold',
+      color:'#ffffff',stroke:'#000000',strokeThickness:5
+    }).setOrigin(.5).setDepth(154).setAlpha(0);
+
+    this.add.text(w/2,h*.62,'NEKO BLOCKS DX',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'22px',fontStyle:'bold',color:'#9fb8c7'
+    }).setOrigin(.5).setDepth(153);
+
+    this.time.delayedCall(220,()=>{
+      this.cameras.main.flash(220,255,244,170);
+      this.tweens.add({targets:small,alpha:1,y:small.y-8,duration:480,ease:'Cubic.easeOut'});
+      this.tweens.add({targets:title,alpha:1,scale:1,duration:620,ease:'Back.easeOut'});
+      this.tweens.add({targets:sub,alpha:1,y:sub.y-6,duration:480,delay:380,ease:'Cubic.easeOut'});
+    });
+
+    this.time.delayedCall(1800,()=>{
+      const retry=this.add.text(w/2,h*.75,'PLAY AGAIN',{
+        fontFamily:'Arial Black, sans-serif',
+        fontSize:'22px',fontStyle:'bold',
+        color:'#071019',backgroundColor:'#f0e442',
+        padding:{left:30,right:30,top:11,bottom:11}
+      }).setOrigin(.5).setDepth(160).setAlpha(0).setInteractive();
+
+      this.tweens.add({targets:retry,alpha:1,y:retry.y-8,duration:380,ease:'Cubic.easeOut'});
+
+      retry.on('pointerdown',()=>{
+        retry.setScale(.94).setAlpha(.72);
+        AUDIO.userGestureResume();
+        this.time.delayedCall(90,()=>this.scene.restart());
+      });
+    });
   }
 
   togglePause(){

@@ -1,0 +1,11 @@
+NEKO BLOCKS DX 5.4
+
+- Five colors only, for easier chains.
+- Red and green remain excluded.
+- After every piece lands, the board collapses by column before match checking.
+  No floating occupied cells remain and there are no empty holes below occupied cells.
+- New pieces spawn fully inside the board.
+- Music title has its own HUD ribbon above the board and no longer overlaps falling blocks.
+- Anime-style title screen rebuilt.
+- Anime-style 100 CLEAR ending rebuilt.
+- Cache bust: 540.
