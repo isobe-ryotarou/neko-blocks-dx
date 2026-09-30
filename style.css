@@ -69,3 +69,6 @@ body{
 #game{
   filter:drop-shadow(0 12px 30px rgba(0,0,0,.35));
 }
+
+/* 5.11 direct-touch controls: old button panel retired */
+#controls{display:none !important;}

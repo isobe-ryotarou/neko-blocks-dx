@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.10
+  NEKO BLOCKS DX 5.11
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -188,10 +188,36 @@ class AudioEngine{
   meow(){this.tone(540,.06,.018);this.tone(680,.08,.016,'triangle',.045)}
   bark(){this.tone(170,.055,.023,'square');this.tone(125,.08,.020,'square',.04)}
   clear(chain){
-    const b=500+chain*80;
-    this.tone(b,.07,.035);
-    this.tone(b*1.25,.08,.03,'triangle',.05);
-    this.tone(b*1.5,.10,.025,'triangle',.10);
+    // 5.11: stronger arcade clear hit + bright tail.
+    const b=520+Math.min(7,chain)*75;
+    this.tone(92,.055,.065,'square');
+    this.tone(180,.075,.052,'sawtooth',.012);
+    this.tone(b,.085,.060,'square',.025);
+    this.tone(b*1.28,.10,.050,'triangle',.075);
+    this.tone(b*1.58,.13,.042,'triangle',.135);
+  }
+
+  comboVoice(chain){
+    // Spoken combo call when the browser has a Japanese voice.
+    // Falls back to an arcade pitch call if speech synthesis is unavailable.
+    const text=chain<=1?'コンボ！':`${chain}コンボ！`;
+    try{
+      if('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window){
+        window.speechSynthesis.cancel();
+        const u=new SpeechSynthesisUtterance(text);
+        u.lang='ja-JP';
+        u.rate=1.22;
+        u.pitch=1.18+Math.min(chain,6)*.035;
+        u.volume=.85;
+        window.speechSynthesis.speak(u);
+      }else{
+        throw new Error('speech unavailable');
+      }
+    }catch{
+      const base=520+Math.min(chain,8)*55;
+      this.tone(base,.09,.045,'square');
+      this.tone(base*1.32,.12,.04,'triangle',.07);
+    }
   }
   thunder(chain){
     this.tone(68,.18,.05,'sawtooth');
@@ -649,9 +675,9 @@ class TitleScene extends Phaser.Scene{
       });
     }
 
-    const cats=[[44,168,0,-13],[82,145,2,9],[278,146,3,-8],[317,176,1,13]];
+    const cats=[[34,132,0,-12],[91,112,2,8],[269,112,3,-8],[326,132,1,12]];
     for(const [x,y,c,a] of cats){
-      const s=this.add.image(x,y,'cat'+c).setScale(1.55).setAngle(a).setDepth(4);
+      const s=this.add.image(x,y,'cat'+c).setScale(1.22).setAngle(a).setDepth(4);
       this.tweens.add({
         targets:s,y:y-8,angle:a+(a>0?-3:3),
         duration:1300+Math.random()*500,
@@ -720,7 +746,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.10 • SECRET STAGE SELECT',{
+    this.add.text(w/2,575,'BUILD 5.11 • TOUCH COMBO',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -826,7 +852,7 @@ class GameScene extends Phaser.Scene{
   constructor(){super('Game')}
 
   create(data={}){
-    setControlsVisible(true);
+    setControlsVisible(false);
 
     this.board=new Board();
     this.factory=new PieceFactory();
@@ -842,12 +868,16 @@ class GameScene extends Phaser.Scene{
 
     this.state='SPAWN';
     this.piece=null;
-    this.next=null;
+    this.nextQueue=[];
     this.ended=false;
     this.pausedByUser=false;
     this.stageCutin=false;
     this.softDrop=false;
     this.dropAccum=0;
+
+    // 5.11 touch controls
+    this.touchDrag=null;
+    this.rotatingUntil=0;
 
     // 5.7: stage-FX runtime state
     this.stageAmbientObjects=[];
@@ -863,7 +893,11 @@ class GameScene extends Phaser.Scene{
     this.stageArrivalFX(this.stage);
 
     this.factory.setStage(this.stage);
-    this.next=this.factory.create();
+    this.nextQueue=[
+      this.factory.create(),
+      this.factory.create(),
+      this.factory.create()
+    ];
 
     AUDIO.setStage(this.stage);
     if(this.secretMode)this.buildSecretStageControls();
@@ -889,7 +923,7 @@ class GameScene extends Phaser.Scene{
     this.lockedLayer=this.add.container(0,0).setDepth(4);
     this.ghostLayer=this.add.container(0,0).setDepth(5);
     this.activeLayer=this.add.container(0,0).setDepth(6);
-    this.nextLayer=this.add.container(this.scale.width-63,58).setDepth(20);
+    this.nextLayer=this.add.container(0,0).setDepth(20);
 
     this.scoreT=this.add.text(12,10,'SCORE 0',{
       fontFamily:'Arial Black, sans-serif',fontSize:'16px',color:'#14232d'
@@ -903,19 +937,10 @@ class GameScene extends Phaser.Scene{
       fontFamily:'Arial Black, sans-serif',fontSize:'16px',color:'#14232d'
     }).setOrigin(1,0).setDepth(20);
 
-    this.nextT=this.add.text(this.scale.width-12,34,'NEXT',{
-      fontSize:'12px',fontStyle:'bold',color:'#14232d'
+    this.nextT=this.add.text(this.scale.width-12,72,'NEXT ×3',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'10px',fontStyle:'bold',color:'#14232d'
     }).setOrigin(1,0).setDepth(20);
-
-    this.musicBar=this.add.rectangle(
-      this.scale.width/2,72,246,24,0x071019,.84
-    ).setDepth(19).setStrokeStyle(1,0x56b4e9,.48);
-
-    this.musicT=this.add.text(this.scale.width/2,65,'',{
-      fontFamily:'Arial, "Noto Sans JP", sans-serif',
-      fontSize:'10px',fontStyle:'bold',
-      color:'#ecf9ff',align:'center',fixedWidth:232
-    }).setOrigin(.5,0).setDepth(20);
 
     this.chainT=this.add.text(this.scale.width/2,this.by+155,'',{
       fontFamily:'Arial Black, sans-serif',
@@ -981,50 +1006,80 @@ class GameScene extends Phaser.Scene{
   }
 
   bindControls(){
-    const tap=(id,fn)=>{
-      const el=document.getElementById(id);
-      if(!el)return;
+    // Direct board controls:
+    // tap = rotate, horizontal drag = move, downward drag = drop.
+    const insideBoard=(p)=>(
+      p.x>=this.bx && p.x<=this.bx+CFG.boardW &&
+      p.y>=this.by && p.y<=this.by+CFG.boardH
+    );
 
-      el.onpointerdown=e=>{
-        e.preventDefault();
-        AUDIO.userGestureResume();
-        this.buttonVisual(el,true);
-        fn();
+    this.input.on('pointerdown',p=>{
+      if(!insideBoard(p) || !this.canControl())return;
+      AUDIO.userGestureResume();
+      this.touchDrag={
+        startX:p.x,startY:p.y,
+        lastX:p.x,lastY:p.y,
+        moved:false,
+        downAt:this.time.now
       };
+    });
 
-      const release=()=>this.buttonVisual(el,false);
-      el.onpointerup=release;
-      el.onpointercancel=release;
-      el.onpointerleave=release;
+    this.input.on('pointermove',p=>{
+      if(!this.touchDrag || !p.isDown || !this.canControl())return;
+
+      const d=this.touchDrag;
+      const dx=p.x-d.lastX;
+      const dy=p.y-d.lastY;
+
+      // horizontal movement one column per threshold
+      if(Math.abs(dx)>=18){
+        const dir=dx>0?1:-1;
+        if(!this.board.collides(this.piece,dir,0)){
+          this.piece.x+=dir;
+          this.dropAccum=0;
+          this.redraw();
+        }
+        d.lastX=p.x;
+        d.moved=true;
+      }
+
+      // downward drag: piece follows the finger cell-by-cell
+      if(dy>=18){
+        let steps=Math.max(1,Math.floor(dy/18));
+        while(steps-->0 && this.canControl()){
+          if(!this.board.collides(this.piece,0,1)){
+            this.piece.y++;
+            this.score++;
+            this.dropAccum=0;
+          }else{
+            this.beginLock(false);
+            break;
+          }
+        }
+        d.lastY=p.y;
+        d.moved=true;
+        this.redraw();
+      }
+    });
+
+    const endPointer=p=>{
+      if(!this.touchDrag)return;
+      const d=this.touchDrag;
+      const totalDx=p.x-d.startX;
+      const totalDy=p.y-d.startY;
+      const duration=this.time.now-d.downAt;
+      const isTap=!d.moved && Math.abs(totalDx)<13 && Math.abs(totalDy)<13 && duration<420;
+      this.touchDrag=null;
+
+      if(isTap && this.canControl()){
+        this.rotate();
+      }
     };
 
-    const hold=(id,onDown,onUp)=>{
-      const el=document.getElementById(id);
-      if(!el)return;
+    this.input.on('pointerup',endPointer);
+    this.input.on('pointerupoutside',endPointer);
 
-      el.onpointerdown=e=>{
-        e.preventDefault();
-        AUDIO.userGestureResume();
-        this.buttonVisual(el,true);
-        onDown();
-      };
-
-      const release=()=>{
-        this.buttonVisual(el,false);
-        onUp();
-      };
-      el.onpointerup=release;
-      el.onpointercancel=release;
-      el.onpointerleave=release;
-    };
-
-    tap('left',()=>this.move(-1));
-    tap('right',()=>this.move(1));
-    tap('rotate',()=>this.rotate());
-    tap('drop',()=>this.hardDrop());
-    tap('pause',()=>this.togglePause());
-    hold('down',()=>this.softDrop=true,()=>this.softDrop=false);
-
+    // Keyboard remains for desktop testing.
     this.input.keyboard.on('keydown-LEFT',()=>this.move(-1));
     this.input.keyboard.on('keydown-RIGHT',()=>this.move(1));
     this.input.keyboard.on('keydown-UP',()=>this.rotate());
@@ -1049,6 +1104,12 @@ class GameScene extends Phaser.Scene{
   update(_,delta){
     if(!this.canControl())return;
 
+    // While the tap-rotation animation window is active, gravity is frozen.
+    if(this.time.now<this.rotatingUntil){
+      this.dropAccum=0;
+      return;
+    }
+
     this.dropAccum+=delta;
     const interval=this.softDrop?Math.max(55,this.fallMs()*.12):this.fallMs();
 
@@ -1071,8 +1132,13 @@ class GameScene extends Phaser.Scene{
     this.state='SPAWN';
     this.factory.setStage(this.stage);
 
-    this.piece=this.next||this.factory.create();
-    this.next=this.factory.create();
+    if(!this.nextQueue || this.nextQueue.length<3){
+      this.nextQueue=this.nextQueue||[];
+      while(this.nextQueue.length<3)this.nextQueue.push(this.factory.create());
+    }
+
+    this.piece=this.nextQueue.shift()||this.factory.create();
+    this.nextQueue.push(this.factory.create());
 
     this.piece.x=Math.floor((CFG.cols-this.piece.matrix[0].length)/2);
     this.piece.y=0;
@@ -1097,6 +1163,9 @@ class GameScene extends Phaser.Scene{
 
   rotate(){
     if(!this.canControl())return;
+
+    this.rotatingUntil=this.time.now+230;
+    this.dropAccum=0;
 
     const rotated=rotateCW(this.piece.matrix);
 
@@ -1195,6 +1264,7 @@ class GameScene extends Phaser.Scene{
     this.level=1+Math.floor(this.clears/10);
 
     AUDIO.clear(chainNo);
+    AUDIO.comboVoice(chainNo);
     if(chainNo>=3)AUDIO.thunder(chainNo);
 
     this.showChain(chainNo,uniq.length);
@@ -1249,24 +1319,58 @@ class GameScene extends Phaser.Scene{
   }
 
   showChain(chainNo,count){
-    const label=chainNo===1?`${count} MATCH!`:`${chainNo} CHAIN!`;
+    const label=chainNo<=1?'コンボ！':`${chainNo}コンボ！`;
+    const x=this.scale.width/2;
+    const y=this.by+150;
 
-    this.chainT
-      .setText(label)
-      .setAlpha(1)
-      .setScale(.45)
-      .setY(this.by+160);
+    // Speech-bubble style combo callout.
+    const bubble=this.add.graphics().setDepth(92);
+    bubble.fillStyle(0xffffff,.97);
+    bubble.lineStyle(4,0x101820,1);
+    bubble.fillRoundedRect(x-82,y-34,164,68,22);
+    bubble.strokeRoundedRect(x-82,y-34,164,68,22);
+    bubble.fillTriangle(x-18,y+32,x+8,y+32,x-4,y+50);
+    bubble.lineBetween(x-18,y+32,x-4,y+50);
+    bubble.lineBetween(x-4,y+50,x+8,y+32);
 
-    this.tweens.killTweensOf(this.chainT);
+    const txt=this.add.text(x,y-2,label,{
+      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+      fontSize:chainNo>=5?'29px':'27px',
+      fontStyle:'bold',
+      color:chainNo>=3?'#d53131':'#101820',
+      stroke:'#ffffff',
+      strokeThickness:2
+    }).setOrigin(.5).setDepth(93).setScale(.35).setAlpha(0);
+
+    const tiny=this.add.text(x,y+22,`${count} BLOCK CLEAR`,{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'9px',fontStyle:'bold',
+      color:'#52616b'
+    }).setOrigin(.5).setDepth(93).setAlpha(0);
+
+    bubble.setScale(.4).setAlpha(0);
+
     this.tweens.add({
-      targets:this.chainT,
-      scale:chainNo>=3?1.30:1.06,
-      y:this.chainT.y-22,
-      duration:170,
-      ease:'Back.easeOut',
-      hold:230,
-      yoyo:true,
-      onComplete:()=>this.chainT.setAlpha(0)
+      targets:bubble,
+      scale:1,alpha:1,
+      duration:150,ease:'Back.easeOut',
+      hold:300,yoyo:true,
+      onComplete:()=>bubble.destroy()
+    });
+
+    this.tweens.add({
+      targets:txt,
+      scale:1,alpha:1,
+      duration:160,ease:'Back.easeOut',
+      hold:280,yoyo:true,
+      onComplete:()=>txt.destroy()
+    });
+
+    this.tweens.add({
+      targets:tiny,
+      alpha:1,duration:140,delay:60,
+      hold:230,yoyo:true,
+      onComplete:()=>tiny.destroy()
     });
   }
 
@@ -1763,93 +1867,34 @@ class GameScene extends Phaser.Scene{
 
   enterStage(newStage){
     this.clearStageAmbientFX();
-    this.stageCutin=true;
-    this.state='STAGE_CUTIN';
-    const clearedStage=newStage-1;
 
     this.stage=newStage;
     this.factory.setStage(newStage);
     AUDIO.setStage(newStage);
     this.applyTheme();
     this.updateHUD();
-    this.stageArrivalFX(newStage);
 
-    this.showStageCutin(clearedStage,()=>{
-      this.stageCutin=false;
-      this.state='STABLE';
-      this.spawn();
-    });
-  }
-
-  showStageCutin(stageNumber,onDone){
-    const msg=STAGE_MESSAGES[stageNumber]||'制覇';
-    const w=this.scale.width,h=this.scale.height;
-
-    const shade=this.add.rectangle(w/2,h/2,w,h,0x030509,.58).setDepth(120);
-    const band=this.add.rectangle(w/2,h/2,w*1.7,178,0x101a24,.96)
-      .setDepth(121).setAngle(-12).setScale(0,1);
-
-    this.tweens.add({
-      targets:band,scaleX:1,duration:180,ease:'Cubic.easeOut'
-    });
-
-    const lines=[];
-    for(let i=0;i<32;i++){
-      const a=i/32*Math.PI*2;
-      const r=120+Math.random()*75;
-      const l=this.add.rectangle(
-        w/2+Math.cos(a)*r,
-        h/2+Math.sin(a)*r,
-        90+Math.random()*150,
-        2,
-        0xd7f6ff,.72
-      ).setDepth(122).setAngle(Phaser.Math.RadToDeg(a));
-      lines.push(l);
-    }
-
-    const sub=this.add.text(w/2,h/2-96,`STAGE ${stageNumber} CLEAR!`,{
+    // Seamless stage transition: no "天才 / 神域" blocking cut-in.
+    // A short top notice + stage FX plays while the next piece continues immediately.
+    const w=this.scale.width;
+    const notice=this.add.text(w/2,55,`STAGE ${newStage}`,{
       fontFamily:'Arial Black, sans-serif',
-      fontSize:'23px',fontStyle:'bold',
-      color:'#ffffff',
+      fontSize:'19px',fontStyle:'bold',
+      color:newStage===10?'#ffd54f':'#ffffff',
       stroke:'#000000',strokeThickness:5
-    }).setOrigin(.5).setDepth(124);
-
-    const text=this.add.text(w/2,h/2,msg,{
-      fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:'176px',fontStyle:'bold',
-      color:'#ffffff',
-      stroke:'#0d3850',strokeThickness:14
-    }).setOrigin(.5).setDepth(125).setAngle(-9).setScale(2.6).setAlpha(0);
-
-    this.cameras.main.flash(90,255,255,255);
+    }).setOrigin(.5).setDepth(135).setAlpha(0).setScale(.72);
 
     this.tweens.add({
-      targets:text,scale:1,alpha:1,duration:260,ease:'Back.easeOut'
+      targets:notice,
+      alpha:1,scale:1,y:61,
+      duration:170,ease:'Back.easeOut',
+      hold:330,yoyo:true,
+      onComplete:()=>notice.destroy()
     });
 
-    this.time.delayedCall(1050,()=>{
-      const ghost=this.add.text(text.x+20,text.y+14,msg,{
-        fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-        fontSize:'176px',fontStyle:'bold',
-        color:'#56b4e9',
-        stroke:'#000000',strokeThickness:10
-      }).setOrigin(.5).setDepth(123).setAlpha(.28).setAngle(-9);
-
-      this.tweens.add({
-        targets:[text,ghost],
-        x:-210,y:-110,alpha:0,
-        duration:800,ease:'Cubic.easeIn'
-      });
-
-      this.tweens.add({
-        targets:[shade,band,sub,...lines],
-        alpha:0,duration:500,
-        onComplete:()=>{
-          [shade,band,sub,text,ghost,...lines].forEach(o=>o&&o.destroy&&o.destroy());
-          onDone?.();
-        }
-      });
-    });
+    this.stageArrivalFX(newStage);
+    this.state='STABLE';
+    this.time.delayedCall(90,()=>this.spawn());
   }
 
   masterClear(){
@@ -2019,12 +2064,32 @@ class GameScene extends Phaser.Scene{
 
   drawNext(){
     this.nextLayer.removeAll(true);
-    if(!this.next)return;
+    if(!this.nextQueue || !this.nextQueue.length)return;
 
-    occupied(this.next.matrix,(x,y,colorIdx)=>{
-      const key=this.next.dog?'dog':'cat'+colorIdx;
-      const sp=this.add.image(x*16,y*16,key).setDisplaySize(15,15);
-      this.nextLayer.add(sp);
+    const baseX=this.scale.width-39;
+    const baseY=105;
+
+    this.nextQueue.slice(0,3).forEach((piece,index)=>{
+      const size=index===0?9:8;
+      const gap=50;
+      const yy=baseY+index*gap;
+
+      // subtle slot
+      const slot=this.add.rectangle(baseX,yy+13,42,42,0x071019,.12)
+        .setStrokeStyle(1,0x6d7c86,.22);
+      this.nextLayer.add(slot);
+
+      const mw=piece.matrix[0].length;
+      const mh=piece.matrix.length;
+      const ox=baseX-(mw*size)/2+size/2;
+      const oy=yy+13-(mh*size)/2+size/2;
+
+      occupied(piece.matrix,(x,y,colorIdx)=>{
+        const key=piece.dog?'dog':'cat'+colorIdx;
+        const sp=this.add.image(ox+x*size,oy+y*size,key)
+          .setDisplaySize(size-1,size-1);
+        this.nextLayer.add(sp);
+      });
     });
   }
 
@@ -2069,11 +2134,6 @@ class GameScene extends Phaser.Scene{
     this.scoreT.setText('SCORE '+this.score);
     this.clearT.setText('CLEAR '+this.clears);
     this.stageT.setText('STAGE '+this.stage);
-
-    const music=(AUDIO.realStage===this.stage&&AUDIO.currentCfg)
-      ? AUDIO.currentCfg
-      : (Array.isArray(REAL_BGM[this.stage])?REAL_BGM[this.stage][0]:REAL_BGM[this.stage]);
-    this.musicT.setText(music?'BGM: '+music.title:'');
 
     if(!this.secretMode && this.score>this.best){
       this.best=this.score;

@@ -1,14 +1,21 @@
-NEKO BLOCKS DX 5.10 — SECRET STAGE SELECT
+NEKO BLOCKS DX 5.11 — TOUCH COMBO
 
-How to open:
-- On the title screen, tap the NEKO BLOCKS logo 5 times within about 1.2 seconds.
-
-Secret mode:
-- Choose STAGE 1–10 directly.
-- Selected stage starts with its stage BGM, speed, darkening and arrival FX.
-- BEST score is not updated in secret mode.
-- During secret play: ◀ STAGE / TITLE / STAGE ▶ controls are available.
-- Retry keeps the current selected stage.
-
-BUILD 5.10 • SECRET STAGE SELECT
-Cache: 5100
+Major rebuild:
+- Restored and strengthened block-clear arcade sound.
+- Added spoken combo calls: コンボ！ / 2コンボ！ / 3コンボ！ ...
+  using browser Japanese speech synthesis with synth fallback.
+- Added speech-bubble combo popups.
+- Removed BGM track-name display.
+- NEXT queue now shows 3 upcoming pieces.
+- Removed old on-screen control buttons.
+- Direct board controls:
+  tap = rotate
+  drag left/right = move
+  drag downward = drop
+- Gravity freezes briefly while rotating.
+- Removed 天才 / 神域 etc. blocking stage cut-ins.
+- Stage changes are now seamless with a short STAGE notice + effects.
+- Repositioned/reduced title cats so they do not overlap the title.
+- Secret stage select remains available.
+- Cache: 5110
+- Build: BUILD 5.11 • TOUCH COMBO
