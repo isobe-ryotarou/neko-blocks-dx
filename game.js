@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.17
+  NEKO BLOCKS DX 5.18
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -768,7 +768,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.17 • ARCADE HUD REBUILD',{
+    this.add.text(w/2,575,'BUILD 5.18 • RESCUE DROP',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -901,6 +901,13 @@ class GameScene extends Phaser.Scene{
     this.touchDrag=null;
     this.touchingPiece=false;
     this.rotatingUntil=0;
+
+    // 5.18: selectable drag-drop mode
+    this.instantDropMode=false;
+
+    // One rescue star per stage
+    this.rescueStarUsed=new Set();
+    this.rescueStarActive=null;
 
     // 5.7: stage-FX runtime state
     this.stageAmbientObjects=[];
@@ -1128,6 +1135,20 @@ class GameScene extends Phaser.Scene{
       onComplete:()=>this.scoreRuleHint.setVisible(false)
     });
 
+    this.dropModeFrame=this.addEmbossFrame(326,82,56,34,0x071019,0x56b4e9,18);
+    this.dropModeBtn=this.add.text(326,82,'DROP',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'10px',fontStyle:'bold',color:'#ffffff'
+    }).setOrigin(.5).setDepth(30).setInteractive({useHandCursor:true});
+
+    this.dropModeBtn.on('pointerdown',()=>{
+      AUDIO.userGestureResume();
+      this.instantDropMode=!this.instantDropMode;
+      this.dropModeBtn
+        .setText(this.instantDropMode?'DROP▼':'DROP')
+        .setColor(this.instantDropMode?'#f0e442':'#ffffff');
+    });
+
     this.chainT=this.add.text(this.scale.width/2,this.by+155,'',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'36px',fontStyle:'bold',
@@ -1257,8 +1278,21 @@ class GameScene extends Phaser.Scene{
         d.moved=true;
       }
 
-      // downward drag: piece follows the finger cell-by-cell
+      // downward drag: normal mode = cell-by-cell / DROP▼ mode = bottom instantly
       if(dy>=18){
+        if(this.instantDropMode){
+          const gy=this.board.ghostY(this.piece);
+          const moved=Math.max(0,gy-this.piece.y);
+          this.piece.y=gy;
+          this.score+=moved;
+          this.dropAccum=0;
+          d.lastY=p.y;
+          d.moved=true;
+          this.redraw();
+          this.beginLock(true);
+          return;
+        }
+
         let steps=Math.max(1,Math.floor(dy/18));
         while(steps-->0 && this.canControl()){
           if(!this.board.collides(this.piece,0,1)){
@@ -1442,6 +1476,95 @@ class GameScene extends Phaser.Scene{
     });
   }
 
+  isNearGameOver(){
+    // "Almost stuck": any occupied block reaches the top five rows.
+    for(let y=0;y<5;y++){
+      for(let x=0;x<CFG.cols;x++){
+        if(this.board.grid[y][x])return true;
+      }
+    }
+    return false;
+  }
+
+  maybeSpawnRescueStar(){
+    if(this.ended || this.pausedByUser || this.stageCutin)return;
+    if(!this.isNearGameOver())return;
+    if(this.rescueStarUsed.has(this.stage))return;
+    if(this.rescueStarActive)return;
+
+    this.rescueStarUsed.add(this.stage);
+
+    const y=this.by+70+Math.random()*130;
+    const star=this.add.text(-30,y,'💫',{
+      fontSize:'38px'
+    }).setOrigin(.5).setDepth(170).setInteractive({useHandCursor:true});
+
+    const glow=this.add.circle(-30,y,28,0xfff59d,.14)
+      .setStrokeStyle(2,0xffffff,.35)
+      .setDepth(169);
+
+    this.rescueStarActive={star,glow,stage:this.stage};
+
+    const tween=this.tweens.add({
+      targets:[star,glow],
+      x:this.scale.width+35,
+      duration:5200,
+      ease:'Linear',
+      onComplete:()=>{
+        if(this.rescueStarActive?.star===star)this.rescueStarActive=null;
+        star.destroy();
+        glow.destroy();
+      }
+    });
+
+    star.on('pointerdown',()=>{
+      if(!star.active)return;
+      tween.stop();
+
+      // Remove the bottom five board rows only.
+      for(let y=CFG.rows-5;y<CFG.rows;y++){
+        for(let x=0;x<CFG.cols;x++)this.board.grid[y][x]=null;
+      }
+
+      this.board.collapse();
+      this.redraw();
+
+      AUDIO.thunder(4);
+      this.cameras.main.flash(220,255,245,150);
+      this.cameras.main.shake(360,.018);
+
+      this.fxShockwave(
+        this.bx+CFG.boardW/2,
+        this.by+CFG.boardH-70,
+        0xffd54f,5,8
+      );
+      this.fxBurst(
+        this.bx+CFG.boardW/2,
+        this.by+CFG.boardH-70,
+        0xffffff,52,60,220
+      );
+
+      const msg=this.add.text(this.scale.width/2,this.by+CFG.boardH-90,'お助け！\\n下5段クリア',{
+        fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+        fontSize:'24px',fontStyle:'bold',
+        align:'center',
+        color:'#fff5b0',
+        stroke:'#000000',strokeThickness:7
+      }).setOrigin(.5).setDepth(175).setScale(.5).setAlpha(0);
+
+      this.tweens.add({
+        targets:msg,scale:1,alpha:1,y:msg.y-24,
+        duration:220,ease:'Back.easeOut',
+        hold:420,yoyo:true,
+        onComplete:()=>msg.destroy()
+      });
+
+      this.rescueStarActive=null;
+      star.destroy();
+      glow.destroy();
+    });
+  }
+
   resolve(chainNo){
     if(this.ended)return;
 
@@ -1462,6 +1585,7 @@ class GameScene extends Phaser.Scene{
       if(nextStage!==this.stage){
         this.enterStage(nextStage);
       }else{
+        this.maybeSpawnRescueStar();
         this.time.delayedCall(CFG.spawnDelay,()=>this.spawn());
       }
       return;
@@ -1486,7 +1610,6 @@ class GameScene extends Phaser.Scene{
     this.level=1+Math.floor(this.clears/10);
 
     AUDIO.clear(chainNo);
-    AUDIO.comboVoice(chainNo);
     if(chainNo>=3)AUDIO.thunder(chainNo);
 
     this.showChain(chainNo,uniq.length);
@@ -1541,9 +1664,31 @@ class GameScene extends Phaser.Scene{
   }
 
   showChain(chainNo,count){
-    const label=chainNo<=1?'コンボ！':`${chainNo}コンボ！`;
     const x=this.scale.width/2;
     const y=this.by+155;
+
+    // A single clear is not called a combo.
+    if(chainNo<=1){
+      const gain=this.add.text(x,y,`${count}個 CLEAR   +${(this.lastGain||0).toLocaleString('ja-JP')} pt`,{
+        fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
+        fontSize:'18px',fontStyle:'bold',
+        color:'#ffffff',
+        stroke:'#000000',strokeThickness:5,
+        backgroundColor:'rgba(10,16,21,0.78)',
+        padding:{left:12,right:12,top:7,bottom:7}
+      }).setOrigin(.5).setDepth(94).setAlpha(0).setScale(.72);
+
+      this.tweens.add({
+        targets:gain,
+        alpha:1,scale:1,y:gain.y-12,
+        duration:160,ease:'Back.easeOut',
+        hold:240,yoyo:true,
+        onComplete:()=>gain.destroy()
+      });
+      return;
+    }
+
+    const label=`${chainNo}コンボ！`;
 
     const bubble=this.add.graphics().setDepth(92);
     bubble.fillStyle(0xffffff,.98);
@@ -1563,15 +1708,13 @@ class GameScene extends Phaser.Scene{
     const formula=`${count}個 × 10 × ${chainNo}`;
     const detail=this.add.text(x,y+9,formula,{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:'11px',fontStyle:'bold',
-      color:'#52616b'
+      fontSize:'11px',fontStyle:'bold',color:'#52616b'
     }).setOrigin(.5).setDepth(93).setAlpha(0);
 
     const gain=this.add.text(x,y+31,`+${(this.lastGain||0).toLocaleString('ja-JP')} pt`,{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'17px',fontStyle:'bold',
-      color:'#b97700',
-      stroke:'#ffffff',strokeThickness:2
+      color:'#b97700',stroke:'#ffffff',strokeThickness:2
     }).setOrigin(.5).setDepth(94).setAlpha(0).setScale(.7);
 
     bubble.setScale(.45).setAlpha(0);
@@ -1582,21 +1725,18 @@ class GameScene extends Phaser.Scene{
       hold:340,yoyo:true,
       onComplete:()=>bubble.destroy()
     });
-
     this.tweens.add({
       targets:txt,scale:1,alpha:1,
       duration:165,ease:'Back.easeOut',
       hold:315,yoyo:true,
       onComplete:()=>txt.destroy()
     });
-
     this.tweens.add({
       targets:detail,alpha:1,
       duration:140,delay:45,
       hold:290,yoyo:true,
       onComplete:()=>detail.destroy()
     });
-
     this.tweens.add({
       targets:gain,alpha:1,scale:1,
       duration:150,delay:70,
@@ -2162,6 +2302,11 @@ class GameScene extends Phaser.Scene{
   }
 
   masterClear(){
+    if(this.rescueStarActive){
+      try{this.rescueStarActive.star.destroy()}catch{}
+      try{this.rescueStarActive.glow.destroy()}catch{}
+      this.rescueStarActive=null;
+    }
     if(this.ended)return;
     this.ended=true;
     this.state='COMPLETE';
@@ -2455,6 +2600,11 @@ class GameScene extends Phaser.Scene{
 
   gameOver(){
     this.touchingPiece=false;
+    if(this.rescueStarActive){
+      try{this.rescueStarActive.star.destroy()}catch{}
+      try{this.rescueStarActive.glow.destroy()}catch{}
+      this.rescueStarActive=null;
+    }
     if(this.ended)return;
     this.ended=true;
     this.state='GAME_OVER';

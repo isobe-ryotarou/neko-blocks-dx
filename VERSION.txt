@@ -1,19 +1,18 @@
-NEKO BLOCKS DX 5.17 — ARCADE HUD REBUILD
+NEKO BLOCKS DX 5.18 — RESCUE DROP
 
-Major HUD redesign:
-- Removed the permanently crowded score-rule text from under SCORE.
-- Top row is now SCORE / STAGE / PAUSE only.
-- Second row is NEXT only.
-- Score and Stage have matching premium metal cards.
-- Pause is isolated at far right.
-- NEXT hierarchy is clearer:
-  first slot = 次
-  second/third slots = NEXT 2 / NEXT 3
-- First NEXT piece is larger and more prominent.
-- Score rule is shown briefly at game start, then disappears.
-- Every clear now explains scoring inside the combo popup:
-  e.g. "4個 × 10 × 2" and "+80 pt".
-- Frames use deeper multi-layer bevels, highlights, dark edges and shadows.
+Changes:
+- Added selectable DROP mode.
+  DROP = normal downward drag
+  DROP▼ = downward drag instantly moves the piece to the ghost landing position.
+- 1 clear is no longer called a combo.
+- Combo voice removed completely.
+- 2+ chain still displays 2コンボ / 3コンボ / ...
+- Added rescue shooting star 💫.
+- Rescue star appears only when blocks reach the top five rows.
+- It appears at most once per stage.
+- Tap the moving star to erase the bottom five rows.
+- Rescue star triggers flash, shake, shockwave, particles and thunder.
+- Missing the star still consumes that stage's one rescue chance.
 
-BUILD 5.17 • ARCADE HUD REBUILD
-Cache: 5170
+BUILD 5.18 • RESCUE DROP
+Cache: 5180
