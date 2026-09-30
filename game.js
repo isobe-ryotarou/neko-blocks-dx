@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.23
+  NEKO BLOCKS DX 5.24
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -768,8 +768,26 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.23 • SHELL REBUILD',{
-      fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
+    this.add.text(w/2,520,'SOFTAZIO',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'18px',fontStyle:'bold',
+      color:'#dff6ff',stroke:'#071019',strokeThickness:5
+    }).setOrigin(.5).setDepth(6);
+
+    this.add.text(w/2,542,'SOFTWARE FROM A TO Z',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'8px',fontStyle:'bold',
+      color:'#7fa8ba'
+    }).setOrigin(.5).setDepth(6);
+
+    this.add.text(w/2,558,'PRODUCT 001',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'9px',fontStyle:'bold',
+      color:'#f0e442'
+    }).setOrigin(.5).setDepth(6);
+
+    this.add.text(w/2,582,'BUILD 5.24 • SOFTAZIO BRANDING',{
+      fontFamily:'Arial Black, sans-serif',fontSize:'10px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
     // Hidden developer/secret mode: tap the title logo 5 times quickly.
@@ -1245,6 +1263,12 @@ class GameScene extends Phaser.Scene{
       hold:1400,yoyo:true,
       onComplete:()=>this.scoreRuleHint.setVisible(false)
     });
+
+    this.studioBadge=this.add.text(18,this.scale.height-18,'SOFTAZIO  •  PRODUCT 001',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'8px',fontStyle:'bold',
+      color:'#6f8c9b'
+    }).setDepth(25);
 
     this.chainT=this.add.text(this.scale.width/2,this.by+155,'',{
       fontFamily:'Arial Black, sans-serif',
@@ -2810,6 +2834,12 @@ class GameScene extends Phaser.Scene{
       stroke:'#000000',strokeThickness:7
     }).setOrigin(.5).setDepth(161).setScale(.7).setAlpha(0);
 
+    const brand=this.add.text(w/2,h*.46,'SOFTAZIO  •  PRODUCT 001',{
+      fontFamily:'Arial Black, sans-serif',
+      fontSize:'10px',fontStyle:'bold',
+      color:'#f0e442'
+    }).setOrigin(.5).setDepth(161).setAlpha(0);
+
     const stat=this.add.text(w/2,h*.52,
       `SCORE ${this.score}
 CLEAR ${this.clears}
@@ -2818,13 +2848,13 @@ STAGE ${this.stage}`,
     ).setOrigin(.5).setDepth(161).setAlpha(0);
 
     this.tweens.add({targets:over,alpha:1,scale:1,duration:260,ease:'Back.easeOut'});
-    this.tweens.add({targets:stat,alpha:1,duration:300,delay:150});
+    this.tweens.add({targets:[brand,stat],alpha:1,duration:300,delay:150});
 
     this.time.delayedCall(1150,()=>{
       this.tweens.add({
-        targets:[over,stat,shade],alpha:0,duration:320,
+        targets:[over,brand,stat,shade],alpha:0,duration:320,
         onComplete:()=>{
-          over.destroy();stat.destroy();shade.destroy();
+          over.destroy();brand.destroy();stat.destroy();shade.destroy();
           this.playStage10Demo();
         }
       });

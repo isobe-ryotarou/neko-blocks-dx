@@ -1,14 +1,12 @@
-NEKO BLOCKS DX 5.23 — SHELL REBUILD
+NEKO BLOCKS DX 5.24 — SOFTAZIO BRANDING
 
-Major fixes:
-- Score no longer increases from dragging, soft-drop distance or hard-drop distance.
-- Score increases only when matching blocks are actually cleared.
-- Top HUD rebuilt as an exact edge-aligned grid.
-- Frames no longer overlap each other.
-- Rescue stock and AUTO DROP panels are separated into fixed right-side modules.
-- Added a full-screen arcade cabinet shell/background to eliminate ugly empty margins.
-- Added side rails, top/bottom metallic strips and corner details.
-- NEXT area simplified into a clean aligned grid.
+- Added SOFTAZIO to title screen.
+- Added SOFTWARE FROM A TO Z tagline.
+- Added PRODUCT 001 designation.
+- Added subtle SOFTAZIO / PRODUCT 001 gameplay signature.
+- Added SOFTAZIO branding to game over.
+- Updated browser title/meta.
+- Added SOFTAZIO_BRAND.txt.
 
-BUILD 5.23 • SHELL REBUILD
-Cache: 5230
+BUILD 5.24 • SOFTAZIO BRANDING
+Cache: 5240
