@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.15
+  NEKO BLOCKS DX 5.16
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -768,7 +768,7 @@ class TitleScene extends Phaser.Scene{
     start.on('pointerup',()=>start.setScale(1).setAlpha(1));
     start.on('pointerout',()=>start.setScale(1).setAlpha(1));
 
-    this.add.text(w/2,575,'BUILD 5.15 • CHAIN TOUCH BOOST',{
+    this.add.text(w/2,575,'BUILD 5.16 • EMBOSS TOUCH',{
       fontFamily:'Arial Black, sans-serif',fontSize:'11px',color:'#6c8797'
     }).setOrigin(.5).setDepth(6);
 
@@ -978,23 +978,53 @@ class GameScene extends Phaser.Scene{
     return piece;
   }
 
+  addEmbossFrame(x,y,w,h,base=0x071019,accent=0x56b4e9,depth=18){
+    const c=this.add.container(0,0).setDepth(depth);
+
+    // soft outer shadow
+    const shadow=this.add.rectangle(x+3,y+4,w+6,h+6,0x000000,.28);
+    c.add(shadow);
+
+    // outer metallic rim
+    const outer=this.add.rectangle(x,y,w+4,h+4,base,.98)
+      .setStrokeStyle(2,accent,.88);
+    c.add(outer);
+
+    // top-left highlight gives the emboss/bevel feeling
+    const hiTop=this.add.rectangle(x,y-h/2+2,w-8,2,0xffffff,.28);
+    const hiLeft=this.add.rectangle(x-w/2+2,y,2,h-8,0xffffff,.20);
+    c.add([hiTop,hiLeft]);
+
+    // bottom-right dark bevel
+    const loBottom=this.add.rectangle(x,y+h/2-2,w-8,3,0x000000,.48);
+    const loRight=this.add.rectangle(x+w/2-2,y,3,h-8,0x000000,.42);
+    c.add([loBottom,loRight]);
+
+    // inner glossy plate
+    const inner=this.add.rectangle(x,y,w-8,h-8,base,.94)
+      .setStrokeStyle(1,0xffffff,.10);
+    c.add(inner);
+
+    return c;
+  }
+
   buildUI(){
+    // Main board: layered embossed frame.
+    this.boardEmboss=this.addEmbossFrame(
+      this.bx+CFG.boardW/2,
+      this.by+CFG.boardH/2,
+      CFG.boardW+10,CFG.boardH+10,
+      0x18252d,0x56b4e9,0
+    );
+
     this.boardBg=this.add.rectangle(
       this.bx+CFG.boardW/2,
       this.by+CFG.boardH/2,
       CFG.boardW,CFG.boardH,
       0xffffff,.94
-    ).setStrokeStyle(4,0x223849,1);
+    ).setStrokeStyle(2,0x223849,1).setDepth(1);
 
-    // decorative outer board glow/frame
-    this.boardFrameGlow=this.add.rectangle(
-      this.bx+CFG.boardW/2,
-      this.by+CFG.boardH/2,
-      CFG.boardW+8,CFG.boardH+8,
-      0x000000,0
-    ).setStrokeStyle(2,0x56b4e9,.35).setDepth(-1);
-
-    this.guides=this.add.graphics();
+    this.guides=this.add.graphics().setDepth(2);
     this.guides.lineStyle(1,0x6d7c86,.14);
     for(let x=1;x<CFG.cols;x++){
       const px=this.bx+x*CFG.cell;
@@ -1006,51 +1036,45 @@ class GameScene extends Phaser.Scene{
     this.activeLayer=this.add.container(0,0).setDepth(6);
     this.nextLayer=this.add.container(0,0).setDepth(20);
 
-    // Luxury SCORE card
-    this.scoreGlow=this.add.rectangle(68,28,120,48,0xf0e442,.08)
-      .setStrokeStyle(6,0xf0e442,.12).setDepth(18);
-    this.scoreBox=this.add.rectangle(68,28,116,44,0x061018,.96)
-      .setStrokeStyle(2,0xf0e442,.98).setDepth(19);
+    // SCORE and STAGE use the same embossed visual hierarchy.
+    this.scoreFrame=this.addEmbossFrame(68,28,118,46,0x061018,0xf0e442,18);
+    this.stageFrame=this.addEmbossFrame(190,28,118,46,0x061018,0x56b4e9,18);
 
-    // Luxury STAGE card
-    this.stageGlow=this.add.rectangle(190,28,120,48,0x56b4e9,.08)
-      .setStrokeStyle(6,0x56b4e9,.12).setDepth(18);
-    this.stageBox=this.add.rectangle(190,28,116,44,0x061018,.96)
-      .setStrokeStyle(2,0x56b4e9,.98).setDepth(19);
-
-    this.scoreLabel=this.add.text(18,10,'SCORE',{
+    this.scoreLabel=this.add.text(18,9,'SCORE',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'9px',fontStyle:'bold',color:'#ffe56a'
-    }).setDepth(20);
+    }).setDepth(21);
 
-    this.stageLabel=this.add.text(140,10,'STAGE',{
+    this.stageLabel=this.add.text(140,9,'STAGE',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'9px',fontStyle:'bold',color:'#83d8ff'
-    }).setDepth(20);
+    }).setDepth(21);
 
-    this.scoreT=this.add.text(18,21,'0',{
+    this.scoreT=this.add.text(18,20,'0',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'20px',fontStyle:'bold',
       color:'#ffffff',stroke:'#000000',strokeThickness:4
-    }).setDepth(20);
+    }).setDepth(21);
 
-    this.stageT=this.add.text(140,21,'1',{
+    this.stageT=this.add.text(140,20,'1',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'20px',fontStyle:'bold',
       color:'#ffffff',stroke:'#000000',strokeThickness:4
-    }).setDepth(20);
+    }).setDepth(21);
 
-    // Small, always-readable score rule.
-    this.scoreRule=this.add.text(12,56,'10pt × 消去数 × コンボ数',{
+    // Score rule moved into its own mini embossed plate so it cannot overlap NEXT.
+    this.ruleFrame=this.addEmbossFrame(113,60,208,24,0x172630,0x6c8797,18);
+    this.scoreRule=this.add.text(113,60,'1個10pt  ×  消去数  ×  コンボ数',{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
-      fontSize:'9px',fontStyle:'bold',color:'#445865'
-    }).setDepth(20);
+      fontSize:'9px',fontStyle:'bold',color:'#d9e8f0'
+    }).setOrigin(.5).setDepth(21);
 
+    // Pause button gets its own embossed square frame.
+    this.pauseFrame=this.addEmbossFrame(328,28,48,46,0x061018,0xf0e442,28);
     this.pauseBtn=this.add.text(328,28,'Ⅱ',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'18px',fontStyle:'bold',
-      color:'#ffffff',backgroundColor:'#071019',
-      padding:{left:10,right:10,top:8,bottom:8}
+      color:'#ffffff'
     }).setOrigin(.5).setDepth(35).setInteractive({useHandCursor:true});
 
     this.pauseBtn.on('pointerdown',()=>{
@@ -1061,13 +1085,12 @@ class GameScene extends Phaser.Scene{
     this.pauseBtn.on('pointerup',()=>this.pauseBtn.setScale(1).setAlpha(1));
     this.pauseBtn.on('pointerout',()=>this.pauseBtn.setScale(1).setAlpha(1));
 
-    // NEXT label has explicit "次" meaning.
-    this.nextBadge=this.add.rectangle(61,84,86,32,0x061018,.96)
-      .setStrokeStyle(2,0xffd54f,.95).setDepth(19);
-    this.nextT=this.add.text(61,84,'次 / NEXT ×3',{
+    // NEXT title uses an embossed badge.
+    this.nextBadgeFrame=this.addEmbossFrame(60,91,94,34,0x061018,0xffd54f,18);
+    this.nextT=this.add.text(60,91,'次 / NEXT ×3',{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
       fontSize:'11px',fontStyle:'bold',color:'#fff2a8'
-    }).setOrigin(.5).setDepth(20);
+    }).setOrigin(.5).setDepth(21);
 
     this.chainT=this.add.text(this.scale.width/2,this.by+155,'',{
       fontFamily:'Arial Black, sans-serif',
@@ -1087,11 +1110,16 @@ class GameScene extends Phaser.Scene{
       color:'#ffffff',stroke:'#000000',strokeThickness:7
     }).setOrigin(.5).setVisible(false).setDepth(181);
 
+    // Central resume button gets a strong embossed plate.
+    this.resumeFrame=this.addEmbossFrame(
+      this.scale.width/2,this.scale.height/2,108,92,0xf0e442,0xffffff,181
+    );
+    this.resumeFrame.setVisible(false);
+
     this.resumeBtn=this.add.text(this.scale.width/2,this.scale.height/2,'▶',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'58px',fontStyle:'bold',
-      color:'#071019',backgroundColor:'#f0e442',
-      padding:{left:27,right:25,top:13,bottom:13}
+      color:'#071019'
     }).setOrigin(.5).setVisible(false).setDepth(182).setInteractive({useHandCursor:true});
 
     this.resumeHint=this.add.text(this.scale.width/2,this.scale.height/2+82,'タップして再開',{
@@ -1106,10 +1134,6 @@ class GameScene extends Phaser.Scene{
     });
     this.resumeBtn.on('pointerup',()=>this.resumeBtn.setScale(1).setAlpha(1));
     this.resumeBtn.on('pointerout',()=>this.resumeBtn.setScale(1).setAlpha(1));
-
-    // Subtle breathing glows.
-    this.tweens.add({targets:[this.scoreGlow,this.stageGlow],alpha:{from:.10,to:.24},
-      duration:1000,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
   }
 
   buildSecretStageControls(){
@@ -2174,6 +2198,7 @@ class GameScene extends Phaser.Scene{
 
     this.pauseShade.setVisible(this.pausedByUser);
     this.pauseText.setVisible(this.pausedByUser);
+    this.resumeFrame.setVisible(this.pausedByUser);
     this.resumeBtn.setVisible(this.pausedByUser).setScale(1).setAlpha(1);
     this.resumeHint.setVisible(this.pausedByUser);
 
@@ -2251,19 +2276,28 @@ class GameScene extends Phaser.Scene{
   }
 
   drawPiece(layer,piece,boardY,alpha=1,ghost=false){
-    const activeGrow=(!ghost && this.touchingPiece)?1.16:1;
+    const activeGrow=(!ghost && this.touchingPiece)?1.28:1;
 
     occupied(piece.matrix,(x,y,colorIdx)=>{
-      const key=piece.dog?'dog':'cat'+colorIdx;
+      const key='cat'+colorIdx;
       const px=this.bx+(piece.x+x)*CFG.cell+CFG.cell/2;
       const py=this.by+(boardY+y)*CFG.cell+CFG.cell/2;
+
+      if(!ghost && this.touchingPiece){
+        const glow=this.add.image(px,py,key)
+          .setAlpha(.18)
+          .setTint(0xffffff)
+          .setDisplaySize(CFG.cell*1.42,CFG.cell*1.42)
+          .setBlendMode(Phaser.BlendModes.ADD);
+        layer.add(glow);
+      }
 
       const sp=this.add.image(px,py,key)
         .setAlpha(alpha)
         .setDisplaySize(CFG.cell*activeGrow,CFG.cell*activeGrow);
 
       if(ghost){
-        // Ghost/navigation stays exactly at the landing cell size.
+        // landing navigation remains unchanged
         sp.setTint(0xffffff);
         sp.setAlpha(.18);
         sp.setDisplaySize(CFG.cell,CFG.cell);
@@ -2280,22 +2314,25 @@ class GameScene extends Phaser.Scene{
     if(!this.nextQueue || !this.nextQueue.length)return;
 
     const centers=[150,224,298];
-    const centerY=84;
+    const centerY=92;
 
     this.nextQueue.slice(0,3).forEach((piece,index)=>{
-      const cellSize=index===0?17:15;
+      const cellSize=index===0?18:16;
       const cx=centers[index];
       const cy=centerY;
-      const slotW=index===0?66:60;
-      const slotH=56;
+      const slotW=index===0?68:62;
+      const slotH=58;
+      const accent=index===0?0xffd54f:0x56b4e9;
 
-      const slotGlow=this.add.rectangle(cx,cy,slotW+6,slotH+6,index===0?0xffd54f:0x56b4e9,.05)
-        .setStrokeStyle(4,index===0?0xffd54f:0x56b4e9,.12);
-      this.nextLayer.add(slotGlow);
-
-      const slot=this.add.rectangle(cx,cy,slotW,slotH,0x071019,.12)
-        .setStrokeStyle(index===0?2:1,index===0?0xffd54f:0x6d7c86,index===0?.85:.30);
-      this.nextLayer.add(slot);
+      // Embossed NEXT slot built directly into the container.
+      const shadow=this.add.rectangle(cx+2,cy+3,slotW+4,slotH+4,0x000000,.24);
+      const outer=this.add.rectangle(cx,cy,slotW+2,slotH+2,0x071019,.98)
+        .setStrokeStyle(2,accent,index===0?.95:.55);
+      const hiTop=this.add.rectangle(cx,cy-slotH/2+2,slotW-8,2,0xffffff,.20);
+      const hiLeft=this.add.rectangle(cx-slotW/2+2,cy,2,slotH-8,0xffffff,.14);
+      const loBottom=this.add.rectangle(cx,cy+slotH/2-2,slotW-8,3,0x000000,.42);
+      const loRight=this.add.rectangle(cx+slotW/2-2,cy,3,slotH-8,0x000000,.38);
+      this.nextLayer.add([shadow,outer,hiTop,hiLeft,loBottom,loRight]);
 
       const mw=piece.matrix[0].length;
       const mh=piece.matrix.length;
@@ -2303,8 +2340,7 @@ class GameScene extends Phaser.Scene{
       const oy=cy-(mh*cellSize)/2+cellSize/2;
 
       occupied(piece.matrix,(x,y,colorIdx)=>{
-        const key=piece.dog?'dog':'cat'+colorIdx;
-        const sp=this.add.image(ox+x*cellSize,oy+y*cellSize,key)
+        const sp=this.add.image(ox+x*cellSize,oy+y*cellSize,'cat'+colorIdx)
           .setDisplaySize(cellSize-1,cellSize-1);
         this.nextLayer.add(sp);
       });

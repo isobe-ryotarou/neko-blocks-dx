@@ -1,17 +1,14 @@
-NEKO BLOCKS DX 5.15 — CHAIN TOUCH BOOST
+NEKO BLOCKS DX 5.16 — EMBOSS TOUCH
 
 Changes:
-- Dog block disabled completely.
-- NEXT pieces are mildly biased toward colors already present near the bottom,
-  making 2–3 step chains more achievable without guaranteeing them.
-- Combo bubble rebuilt wider so combo count and score do not overlap.
-- 3+ combo thunder effect massively upgraded:
-  multiple blue-white lightning bolts, shock rings, flash and camera shake.
-- Thunder audio strengthened and synchronized with the visual strike.
-- While the player is touching/dragging the active piece, only that active piece
-  grows to 116% size for better tactile feedback.
-- Ghost landing preview remains unchanged at normal size.
-- Secret mode and existing stage FX remain intact.
+- Active falling piece now grows to 128% while touched/held.
+- Added a soft touch glow so the held piece feels more tactile.
+- Landing ghost/navigation remains exactly the normal size.
+- Score rule moved into its own mini frame to prevent text overlap:
+  "1個10pt × 消去数 × コンボ数"
+- SCORE, STAGE, score-rule, NEXT badge, NEXT slots, board frame,
+  pause button and central resume button now use layered embossed/beveled frames.
+- NEXT previews made slightly larger again.
 
-BUILD 5.15 • CHAIN TOUCH BOOST
-Cache: 5150
+BUILD 5.16 • EMBOSS TOUCH
+Cache: 5160
