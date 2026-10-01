@@ -439,6 +439,12 @@ class AudioEngine{
     }
   }
 }
+function trackEvent(name, params={}) {
+  try {
+    if (window.gtag) window.gtag('event', name, params);
+  } catch (e) {}
+}
+
 const AUDIO=new AudioEngine();
 
 class PieceFactory{
@@ -892,6 +898,7 @@ class GameScene extends Phaser.Scene{
   constructor(){super('Game')}
 
   create(data={}){
+    trackEvent('game_start',{product:'NEKO BLOCKS DX',version:'5.25'});
     setControlsVisible(false);
 
     this.board=new Board();
@@ -1667,6 +1674,7 @@ class GameScene extends Phaser.Scene{
 
       if(this.rescueStarStock<this.rescueStarMax){
         this.rescueStarStock++;
+        trackEvent('rescue_star_caught',{stock:this.rescueStarStock});
         this.updateRescueStockUI();
         this.toneRescueCatch();
 
@@ -1721,6 +1729,7 @@ class GameScene extends Phaser.Scene{
     if(this.rescueStarStock<=0 || this.ended || this.pausedByUser)return;
 
     this.rescueStarStock--;
+    trackEvent('rescue_star_used',{stock_after:this.rescueStarStock});
     this.updateRescueStockUI();
 
     for(let y=CFG.rows-6;y<CFG.rows;y++){
@@ -1817,6 +1826,9 @@ class GameScene extends Phaser.Scene{
     const gained=uniq.length*10*multiplier;
     this.score+=gained;
     this.lastGain=gained;
+    if(chainNo>=2){
+      trackEvent('combo_reached',{combo:chainNo,score:this.score,cleared_blocks:uniq.length});
+    }
     this.clears++;
     this.level=1+Math.floor(this.clears/10);
 
@@ -2486,6 +2498,7 @@ class GameScene extends Phaser.Scene{
   }
 
   enterStage(newStage){
+    trackEvent('stage_reached',{stage:newStage,score:this.score||0});
     this.clearStageAmbientFX();
 
     this.stage=newStage;
@@ -2598,13 +2611,14 @@ class GameScene extends Phaser.Scene{
       retry.on('pointerdown',()=>{
         retry.setScale(.94).setAlpha(.72);
         AUDIO.userGestureResume();
-        this.time.delayedCall(90,()=>this.scene.restart(this.secretMode?{secretMode:true,secretStage:this.stage}:{}));
+        this.time.delayedCall(90,()=>{ trackEvent('game_retry',{stage:this.stage||1,score:this.score||0}); this.scene.restart(this.secretMode?{secretMode:true,secretStage:this.stage}:{}); });
       });
     });
   }
 
   togglePause(){
     if(this.ended||this.stageCutin)return;
+    trackEvent('pause_toggled',{paused:!this.pausedByUser});
 
     this.pausedByUser=!this.pausedByUser;
 
@@ -2805,6 +2819,12 @@ class GameScene extends Phaser.Scene{
   }
 
   gameOver(){
+    trackEvent('game_over',{
+      score:this.score||0,
+      stage:this.stage||1,
+      clears:this.clears||0,
+      secret_mode:!!this.secretMode
+    });
     this.touchingPiece=false;
     if(this.rescueStarActive){
       try{this.rescueStarActive.carrier?.destroy(true)}catch{}
