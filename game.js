@@ -2,7 +2,7 @@
 'use strict';
 
 /*
-  NEKO BLOCKS DX 5.25
+  COLOR BLOCKS DX 5.25
   COLOR CHAIN full rebuild.
   Key design rule: a falling piece is a MATRIX OF COLORS.
   Rotation rotates that colored matrix itself, so four 90-degree rotations
@@ -713,7 +713,7 @@ class TitleScene extends Phaser.Scene{
       });
     }
 
-    const logo=this.add.text(w/2,230,'NEKO BLOCKS',{
+    const logo=this.add.text(w/2,230,'COLOR BLOCKS',{
       fontFamily:'Arial Black, "Noto Sans JP", sans-serif',
       fontSize:'40px',fontStyle:'bold',
       color:'#ffffff',stroke:'#0a3145',strokeThickness:8,
@@ -898,7 +898,7 @@ class GameScene extends Phaser.Scene{
   constructor(){super('Game')}
 
   create(data={}){
-    trackEvent('game_start',{product:'NEKO BLOCKS DX',version:'5.25'});
+    trackEvent('game_start',{product:'COLOR BLOCKS DX',version:'5.25'});
     setControlsVisible(false);
 
     this.board=new Board();
@@ -2586,7 +2586,7 @@ class GameScene extends Phaser.Scene{
       color:'#ffffff',stroke:'#000000',strokeThickness:5
     }).setOrigin(.5).setDepth(154).setAlpha(0);
 
-    this.add.text(w/2,h*.62,'NEKO BLOCKS DX',{
+    this.add.text(w/2,h*.62,'COLOR BLOCKS DX',{
       fontFamily:'Arial Black, sans-serif',
       fontSize:'22px',fontStyle:'bold',color:'#9fb8c7'
     }).setOrigin(.5).setDepth(153);

@@ -7,7 +7,7 @@ Tagline: SOFTWARE FROM A TO Z
 
 Product structure:
 SOFTAZIO
-└─ PRODUCT 001 — NEKO BLOCKS DX
+└─ PRODUCT 001 — COLOR BLOCKS DX
 
 Status:
 Working/provisional brand for test launch.

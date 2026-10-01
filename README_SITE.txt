@@ -3,13 +3,13 @@ SOFTAZIO Web Site v1.0
 Pages:
 - index.html                 TOP
 - products.html              PRODUCTS
-- product-neko-blocks.html   Product 001 detail
+- product-color-blocks.html   Product 001 detail
 - about.html                 ABOUT
 - news.html                  NEWS
 - contact.html               CONTACT
 - privacy.html               PRIVACY
 - how-to-play.html           Game guide
-- game.html                  NEKO BLOCKS DX 5.25 Stable
+- game.html                  COLOR BLOCKS DX 5.25 Stable
 
 Smartphone deployment:
 1. Download ZIP

@@ -1,4 +1,4 @@
-NEKO BLOCKS DX — 5.25 STABLE
+COLOR BLOCKS DX — 5.25 STABLE
 
 Purpose:
 This is the frozen baseline build for test launch.
