@@ -16,3 +16,6 @@ PRODUCT 001 — NEKO BLOCKS DX
 
 BUILD 5.25 • STABLE
 Cache: 5250
+
+
+SOFTAZIO Site v1.2: GA4 game event tracking added.
